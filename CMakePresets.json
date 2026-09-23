@@ -1,0 +1,85 @@
+{
+  "configurePresets": [
+    {
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": {
+          "type": "STRING",
+          "value": "Release"
+        }
+      },
+      "errors": {
+        "deprecated": true
+      },
+      "hidden": true,
+      "name": "cmake-dev",
+      "warnings": {
+        "deprecated": true,
+        "dev": true
+      }
+    },
+    {
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "STRING",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        "VCPKG_OVERLAY_PORTS": {
+          "type": "STRING",
+          "value": "${sourceDir}/cmake/ports/"
+        }
+      },
+      "hidden": true,
+      "name": "vcpkg"
+    },
+    {
+      "cacheVariables": {
+        "CMAKE_MSVC_RUNTIME_LIBRARY": {
+          "type": "STRING",
+          "value": "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+        },
+        "VCPKG_TARGET_TRIPLET": {
+          "type": "STRING",
+          "value": "x64-windows-static"
+        }
+      },
+      "hidden": true,
+      "name": "windows"
+    },
+    {
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /WX $penv{CXXFLAGS}"
+      },
+      "hidden": true,
+      "name": "msvc-flags"
+    },
+    {
+      "generator": "Visual Studio 18 2026",
+      "inherits": [
+        "cmake-dev",
+        "vcpkg",
+        "windows",
+        "msvc-flags"
+      ],
+      "name": "default",
+      "toolset": "v145"
+    },
+    {
+      "cacheVariables": {
+        "COPY_BUILD": {
+          "type": "BOOL",
+          "value": "OFF"
+        }
+      },
+      "description": "GitHub Actions preset. No generator or toolset is pinned on purpose: the runner's own Visual Studio is used (windows-latest ships VS 2022 17.14, where the 'Visual Studio 18 2026' generator and toolset v145 do not exist). COPY_BUILD is off because MMOHOTBAR_DEPLOY_DIR is a local path that does not exist on a runner.",
+      "inherits": [
+        "cmake-dev",
+        "vcpkg",
+        "windows",
+        "msvc-flags"
+      ],
+      "name": "ci"
+    }
+  ],
+  "version": 2
+}

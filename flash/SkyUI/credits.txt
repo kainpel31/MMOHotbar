@@ -1,0 +1,20 @@
+SkyUI - keycap art
+==================
+
+Interface/STB_Keycaps.swf in this archive is not our artwork.
+
+It is SkyUI's interface/skyui/buttonart.swf (character 153, exported as
+"ButtonArt") with a second "STBKeycap" export added so the plugin can reach it,
+and the number-row key faces flattened to bare digits.
+
+Credit belongs to:
+
+  SkyUI Team                     interface/skyui/buttonart.swf
+
+SkyUI's permissions allow using and modifying its assets as long as SkyUI is
+credited, and forbid using them in paid mods. Its "seek permission from
+Psychosteve and Jelidity" note applies to the icons_*.swf files, not to
+buttonart.swf. Do not sell this asset or ship it in a paid mod.
+
+The plugin itself (MMOHotbar.dll) is GPL-3.0 and is a separate matter -- see
+LICENSE in the main archive. This SWF is not covered by that licence.

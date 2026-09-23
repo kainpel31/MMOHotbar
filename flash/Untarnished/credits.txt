@@ -1,0 +1,22 @@
+STB Hotkey System - keycaps
+===========================
+
+Interface/STB_Keycaps.swf in this archive is not my artwork.
+
+It is built from SkyUI's buttonart.swf. Credit belongs to the SkyUI Team.
+
+SkyUI's permissions allow using and modifying its assets as long as SkyUI is
+credited. Do not sell this asset or ship it in a paid mod. (The "seek permission
+from Psychosteve and Jelidity" note in SkyUI's terms applies to the icons_*.swf
+files, not to buttonart.swf.)
+
+A second set, built from Untarnished UI's art for anyone running that interface,
+is a separate download on the mod page.
+
+The plugin itself (STB_HotkeySystem.dll) is GPL-3.0 -- see LICENSE. That licence
+covers the code, not this SWF.
+
+Rebuilding the file from your own copy of SkyUI, and adapting the keycaps to any
+other interface, is documented in flash/README.md at:
+
+  https://github.com/STB-Team/STB-Hotkey-System

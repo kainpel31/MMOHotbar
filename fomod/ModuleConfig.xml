@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://qconsulting.ca/fo3/ModConfig5.0.xsd">
+
+  <moduleName>MMO Hotbar</moduleName>
+
+  <!-- Plugin, INI and translations: always installed. -->
+  <requiredInstallFiles>
+    <folder source="core" destination="" priority="0"/>
+  </requiredInstallFiles>
+
+  <installSteps order="Explicit">
+    <installStep name="Keycap style">
+      <optionalFileGroups order="Explicit">
+        <group name="Keycaps drawn on the list rows" type="SelectExactlyOne">
+          <plugins order="Explicit">
+
+            <plugin name="SkyUI">
+              <description>
+Keycaps built from SkyUI's own button art. The right choice for a plain SkyUI setup and
+for most UI overhauls, which are SkyUI reskins.
+
+Art by the SkyUI Team.
+              </description>
+              <files>
+                <folder source="keycaps/SkyUI" destination="" priority="1"/>
+              </files>
+              <typeDescriptor>
+                <type name="Recommended"/>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="Untarnished UI">
+              <description>
+Keycaps built from Untarnished UI's own favorites menu, so they match that skin.
+Pick this one only if Untarnished UI is installed.
+
+Art by Vor/Vorganger, uranreactor and the SkyUI Team.
+              </description>
+              <files>
+                <folder source="keycaps/Untarnished" destination="" priority="1"/>
+              </files>
+              <typeDescriptor>
+                <type name="Optional"/>
+              </typeDescriptor>
+            </plugin>
+
+            <plugin name="None">
+              <description>
+No keycaps SWF. The hotkeys work exactly the same; the list rows simply show no key.
+Choose this if you want to drop in your own Interface/STB_Keycaps.swf -- see the
+adaptation guide in the mod's repository.
+              </description>
+              <files/>
+              <typeDescriptor>
+                <type name="Optional"/>
+              </typeDescriptor>
+            </plugin>
+
+          </plugins>
+        </group>
+      </optionalFileGroups>
+    </installStep>
+  </installSteps>
+
+</config>

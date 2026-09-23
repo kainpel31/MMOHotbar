@@ -1,0 +1,20 @@
+{
+  "name": "mmohotbar",
+  "version-string": "2.0.0",
+  "description": "SKSE plugin: MMO hotbar over a chord-based favorites hotkey core (fork of STB Hotkey System)",
+  "license": "GPL-3.0-only",
+  "dependencies": [
+    "boost-atomic",
+    "boost-stl-interfaces",
+    "commonlibsse-ng",
+    "nlohmann-json",
+    "magic-enum",
+    "catch2",
+    "rsm-binary-io",
+    "simpleini",
+    "span-lite",
+    "spdlog",
+    "xbyak"
+  ],
+  "builtin-baseline": "ffffe619563988cbcfda2b8db2c142654d12eaf5"
+}

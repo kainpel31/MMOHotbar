@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fomod>
+  <Name>MMO Hotbar</Name>
+  <Author>MMOHotbar (fork of STB Hotkey System by STB)</Author>
+  <Version>2.0.0</Version>
+  <Website>https://github.com/STB-Team/STB-Hotkey-System</Website>
+  <Description>
+    MMO-style 24-slot hotbar over a chord-based favorites hotkey core
+    (full fork of STB Hotkey System, GPL-3.0-only). Slots 1-12 are keys
+    1..=, slots 13-24 are X+1..X+=. Bind from inventory/magic/favorites,
+    stack groups, keycaps on rows. One SKSE DLL only.
+  </Description>
+  <Groups>
+    <element>Gameplay</element>
+    <element>User Interface</element>
+  </Groups>
+</fomod>

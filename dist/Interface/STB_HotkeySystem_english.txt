@@ -1,0 +1,24 @@
+; STB Hotkey System - UI strings.
+; Copy this file to STB_HotkeySystem_<language>.txt (russian, german, ...) and translate
+; the right-hand side. Format matches the game's own Translate_*.txt: $TOKEN, a TAB,
+; then the text. UTF-8 or UTF-16 LE both work.
+; Use \n for a line break -- a real newline ends the entry and the rest is dropped.
+; Keep the {0}/{1} placeholders: the key name and control name are substituted there.
+
+; --- assign modifier sits on the Favorites-menu key ---   {0} = key name
+$STB_HK_ModifierConflict_Body	STB Hotkey System: the hotkey-assign modifier ({0}) is on the same key that opens the Favorites menu.\n\nThey cannot share a key -- chord capture and opening/closing the menu fight over the same press, and the menu misbehaves.\n\nPick another modifier (it will be saved to the INI):
+$STB_HK_ModifierConflict_Use	Use {0}
+$STB_HK_ModifierConflict_Keep	Leave it as is
+
+; --- the key being bound already drives a vanilla control ---   {0} = key, {1} = control
+$STB_HK_KeyConflict_Body	Key {0} is already bound to "{1}".\n\nPress it in game and both will fire. Assign the hotkey anyway?
+$STB_HK_KeyConflict_Assign	Assign anyway
+$STB_HK_KeyConflict_Cancel	Cancel
+
+; --- button hints along the bottom of the inventory / magic menus ---
+$STB_HK_Hint_Assign	Assign hotkey
+$STB_HK_Hint_Group	Add to group
+
+; --- hand markers drawn after the keycap (which hand the bind equips into) ---
+$STB_HK_Hand_Right	R
+$STB_HK_Hand_Left	L

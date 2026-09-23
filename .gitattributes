@@ -1,0 +1,13 @@
+# No line-ending churn between this Windows working copy and the checkout the CI runner
+# builds: one rule for every text file, decided by the file's own content.
+* text=auto
+
+# These must come AFTER the blanket rule above -- in gitattributes the last matching line
+# wins, so putting them first silently gives the SWF back to "auto". The keycap SWFs and
+# anything else shipped as-is must never be touched by git's end-of-line handling: a byte
+# changed in a .swf is a broken keycap in the installer.
+*.swf binary
+*.dll binary
+*.pdb binary
+*.7z  binary
+*.png binary

@@ -1,0 +1,127 @@
+# Builds MMOHotbar.dll on GitHub's Windows runner, so no Visual Studio, CMake or vcpkg is
+# needed on your own PC. Push to main (or hit "Run workflow") and download the result from
+# the run's Artifacts box.
+#
+# Two things this file depends on:
+#   * the runner is windows-latest = Windows Server 2025 + Visual Studio 2022 Enterprise
+#     17.14. The "default" CMake preset pins the "Visual Studio 18 2026" generator and
+#     toolset v145 for local development, and neither exists on a runner -- hence the "ci"
+#     preset, which pins no generator at all. See CMakePresets.json.
+#   * CommonLibSSE-NG is cloned and built from source rather than taken from vcpkg. The
+#     vcpkg port is 3.7.0 and classifies the runtime by MINOR version (case 6 -> AE), so an
+#     AE 1.7.x game would be mistaken for SE and the plugin would resolve SE offsets against
+#     an AE binary -- see the comment block at the top of CMakeLists.txt.
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same branch cancels the run it supersedes.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Both are read by the CMake presets: VCPKG_ROOT by the toolchain path,
+  # CommonLibSSEPath_NG by CMakeLists.txt.
+  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+  VCPKG_DEFAULT_TRIPLET: x64-windows-static
+  # CommonLibSSE-NG revision to build against. Bump deliberately, not by accident.
+  COMMONLIBSSE_NG_COMMIT: b93280e832f263dbef44e44cbe2936622a02f91a
+
+jobs:
+  build:
+    name: Release DLL
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # VCPKG_BINARY_SOURCES has to name a real directory, so it cannot sit in the
+      # workflow-level env -- the "runner" context is not available there (only github,
+      # inputs, secrets and vars are). Writing it into GITHUB_ENV exports it to every later
+      # step instead: vcpkg's binary cache saves the first build's compiled Boost and
+      # friends, and the cache step below persists that directory between runs.
+      - name: Point vcpkg at its binary cache
+        shell: pwsh
+        run: |
+          "VCPKG_BINARY_SOURCES=clear;files,$env:RUNNER_TEMP/vcpkg-cache,readwrite" |
+            Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Clone vcpkg
+        shell: pwsh
+        run: |
+          # blob:none is the important flag: it brings the full commit graph -- so the
+          # baseline commits pinned in vcpkg.json / vcpkg-configuration.json exist locally --
+          # without downloading every historical blob. A plain --depth 1 clone cannot
+          # resolve a baseline and fails.
+          git clone --filter=blob:none https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
+          & "$env:VCPKG_ROOT/bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Clone CommonLibSSE-NG
+        shell: pwsh
+        run: |
+          git clone --filter=blob:none https://github.com/CharmedBaryon/CommonLibSSE-NG.git "$env:RUNNER_TEMP/CommonLibSSE-NG"
+          git -C "$env:RUNNER_TEMP/CommonLibSSE-NG" checkout $env:COMMONLIBSSE_NG_COMMIT
+          git -C "$env:RUNNER_TEMP/CommonLibSSE-NG" --no-pager log -1 --format='NG at %H %s'
+
+      - name: Cache vcpkg downloads and binary cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.VCPKG_ROOT }}/downloads
+            ${{ runner.temp }}/vcpkg-cache
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: vcpkg-${{ runner.os }}-
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          # Forward slashes on purpose: CMake reads "\a" and "\t" in a Windows path as escape
+          # sequences and mangles the directory before it ever looks at it.
+          $ng = (Join-Path $env:RUNNER_TEMP 'CommonLibSSE-NG').Replace('\', '/')
+          cmake --preset ci "-DCommonLibSSEPath_NG=$ng"
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build --config Release --parallel
+
+      - name: Check the plugin exists
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'build/Release/MMOHotbar.dll')) {
+            throw 'build/Release/MMOHotbar.dll was not produced'
+          }
+          Get-ChildItem build/Release/MMOHotbar.dll, build/Release/MMOHotbar.pdb -ErrorAction SilentlyContinue |
+            Format-Table Name, Length -AutoSize
+
+      - name: Upload the plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: MMOHotbar-plugin
+          path: |
+            build/Release/MMOHotbar.dll
+            build/Release/MMOHotbar.pdb
+          if-no-files-found: error
+
+      # package.ps1 stages dist/ + fomod/ + the keycap SWFs committed under flash/ and
+      # compresses the result; the runner has the 7-Zip it looks for.
+      - name: Build the FOMOD installer
+        shell: pwsh
+        run: ./package.ps1
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: MMO-Hotbar-FOMOD
+          path: package/MMO Hotbar.7z
+          if-no-files-found: error

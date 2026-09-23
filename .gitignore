@@ -1,0 +1,28 @@
+# Build output
+build/
+.vs/
+out/
+
+# Third-party binaries and anything extracted from them.
+# UI-mod art (SkyUI, Untarnished, ...) belongs to its authors -- only the keycap SWFs
+# whose terms allow redistribution *with credit* are tracked, and each one ships with
+# its credit note beside it. Everything else stays out of the repo; see flash/README.md.
+*.swf
+!flash/SkyUI/STB_Keycaps.swf
+!flash/Untarnished/STB_Keycaps.swf
+/Skyui/
+/Untarnished/
+flash/**/build/
+flash/**/work/
+/package/
+
+# Reverse-engineering scratch: Hex-Rays output of SkyrimSE.exe is Bethesda's code.
+/reverse/
+
+# Vendored copy of DIII used as a reference while porting swfhelper.
+# The parts actually used live in src/swfhelper/ with attribution.
+/Dynamic-Inventory-Icon-Injector/
+
+# Local tooling notes
+CLAUDE.md
+AGENTS.md
