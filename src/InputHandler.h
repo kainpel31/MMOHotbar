@@ -74,6 +74,12 @@ namespace HKS
 		std::unordered_set<std::uint32_t> _msHeld;
 		std::unordered_set<std::uint32_t> _padHeld;
 
+		// MMO preset tap-toggle. The preset key (X) flips the hotbar plane on a LONE
+		// tap only -- press and release with no other key in between. Holding it keeps
+		// its chord meaning, so X+1 still reaches the other plane without flipping.
+		bool _presetDown = false;
+		bool _presetChorded = false;
+
 		// Assignment capture (Favorites menu). While the assign-modifier is held we run a
 		// capture session: each chord (up to kMaxChord simultaneously-held keys) binds one
 		// item and is committed on its own -- when it hits the key limit, or when its keys

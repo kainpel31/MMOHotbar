@@ -6,6 +6,9 @@ namespace HKS::Serialization
 	// carry their binds over. The hotbar is a view, not extra save data.
 	inline constexpr std::uint32_t kUniqueID = 'HKSY';  // co-save owner id
 	inline constexpr std::uint32_t kRecordHotkeys = 'HOTK';
+	// Active hotbar plane (1 or 2). Separate record so the HOTK layout never changes.
+	inline constexpr std::uint32_t kRecordPreset = 'PRST';
+	inline constexpr std::uint32_t kPresetVersion = 1;
 	// v3: one item per chord, written as (device, form, ench, uid, health, keys).
 	// v4: a chord holds a LIST of items (groups), written as (device, keys, items).
 	// v5: each item carries the hand(s) it was assigned in.

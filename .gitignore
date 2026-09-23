@@ -26,3 +26,10 @@ flash/**/work/
 # Local tooling notes
 CLAUDE.md
 AGENTS.md
+
+# Local-only asset experiments (user-owned Photoshop/SWF exports, tooling
+# scratch). Never part of the build or the FOMOD package.
+"/Asset dont push to git/"
+/dist/Hotbar.swf.xml
+/tools/_out/
+/tools/swfdump/

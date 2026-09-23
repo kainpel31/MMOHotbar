@@ -25,8 +25,14 @@ See upstream [README](https://github.com/STB-Team/STB-Hotkey-System) and
 
 - `src/HotbarHUD.{h,cpp}` — 24-slot view over the chord table
   (`BindOfSlot` / `SlotOfBind` / `Snapshot` / `ExecuteSlot` / `SlotLabel`).
-- `src/HotbarConsole.{h,cpp}` — Papyrus API `MMOHotbar.FireSlot(1-24)`
+- `src/HotbarConsole.{h,cpp}` — Papyrus API `MMOHotbar.FireSlot(1-24)`,
+  `MMOHotbar.FireSlotSwap(1-24)` (right-click hand swap), `MMOHotbar.GetPreset()`
   and `MMOHotbar.DumpSlots()` so a HUD/SWF can fire slots by script.
+- Preset toggle: TAP `X` alone flips preset 1 ↔ 2 (persisted in the co-save
+  `PRST` record); HOLD `X` + key reaches the other preset once without flipping.
+  Binding follows the visible preset (`Ctrl+1` on preset 2 stores the `{X,1}` chord).
+- `RMB+hotkey` moves a 1H weapon/staff/spell/scroll to the other hand
+  (`EquipDispatch::FireMode::kSwapHands`, both press orders work).
 - `dist/SKSE/Plugins/MMOHotbar.ini` — same keys as STB plus
   `[Hotbar] iPresetModifierScanCode = 45`.
 - DLL/plugin renamed to `MMOHotbar` v2.0.0.

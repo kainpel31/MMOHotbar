@@ -1,5 +1,6 @@
 #include "Serialization.h"
 
+#include "HotbarHUD.h"
 #include "HotkeyManager.h"
 
 namespace HKS::Serialization
@@ -47,7 +48,14 @@ namespace HKS::Serialization
 			}
 		}
 
-		logger::info("saved {} hotkeys", hotkeys.size());
+		if (!a_intfc->OpenRecord(kRecordPreset, kPresetVersion)) {
+		logger::error("failed to open PRST record");
+		return;
+	}
+	const auto presetPlane = MMO::HotbarHUD::ActivePreset();
+	Write<std::uint32_t>(a_intfc, presetPlane);
+
+	logger::info("saved {} hotkeys", hotkeys.size());
 	}
 
 	namespace
@@ -114,6 +122,20 @@ namespace HKS::Serialization
 		std::uint32_t length;
 
 		while (a_intfc->GetNextRecordInfo(type, version, length)) {
+			if (type == kRecordPreset) {
+				if (version != kPresetVersion) {
+					logger::warn("PRST version {} is not readable (expected {}), ignoring", version, kPresetVersion);
+					continue;
+				}
+				std::uint32_t presetPlane = 1;
+				if (!Read(a_intfc, presetPlane)) {
+					logger::error("failed reading preset plane");
+					break;
+				}
+				MMO::HotbarHUD::SetActivePreset(presetPlane);
+				logger::info("loaded hotbar preset plane {}", MMO::HotbarHUD::ActivePreset());
+				continue;
+			}
 			if (type != kRecordHotkeys) {
 				logger::warn("unknown co-save record {:08X}, skipping", type);
 				continue;

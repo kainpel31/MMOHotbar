@@ -56,6 +56,55 @@ void HotbarHUD::Register()
 std::uint32_t HotbarHUD::PresetModifier() { return _presetModifier; }
 void HotbarHUD::SetPresetModifier(std::uint32_t a_code) { _presetModifier = a_code; }
 
+std::uint32_t HotbarHUD::ActivePreset() { return _activePreset; }
+
+void HotbarHUD::SetActivePreset(std::uint32_t a_preset)
+{
+    _activePreset = a_preset == 2 ? 2 : 1;
+}
+
+void HotbarHUD::TogglePreset()
+{
+    _activePreset = _activePreset == 1 ? 2 : 1;
+    logger::info("hotbar preset plane -> {} (modifier 0x{:X})", _activePreset, _presetModifier);
+}
+
+bool HotbarHUD::IsRowKey(std::uint32_t a_scancode)
+{
+    return std::find(std::begin(kRowKeys), std::end(kRowKeys), a_scancode) != std::end(kRowKeys);
+}
+
+void HotbarHUD::TranslateForCapture(HKS::Bind& a_bind)
+{
+    if (a_bind.device != RE::INPUT_DEVICE::kKeyboard || _activePreset != 2 || _presetModifier == 0) {
+        return;
+    }
+    if (a_bind.keys.size() != 1 || !IsRowKey(a_bind.keys[0])) {
+        return;
+    }
+    a_bind.keys.push_back(_presetModifier);
+    a_bind.Canonicalize();
+}
+
+void HotbarHUD::TranslateForFire(RE::INPUT_DEVICE a_device,
+    std::unordered_set<std::uint32_t>& a_held, std::uint32_t a_key)
+{
+    // Only the plane-2 read-through needs translating; plane 1 resolves exactly as
+    // stored. Chords on keys outside the hotbar row are never rewritten, so a
+    // modifier the player reused for an unrelated chord keeps its own meaning.
+    if (a_device != RE::INPUT_DEVICE::kKeyboard || _activePreset != 2 || _presetModifier == 0) {
+        return;
+    }
+    if (std::find(std::begin(kRowKeys), std::end(kRowKeys), a_key) == std::end(kRowKeys)) {
+        return;
+    }
+    if (a_held.contains(_presetModifier)) {
+        a_held.erase(_presetModifier);   // modifier+key on plane 2 -> plane-1 slot
+    } else {
+        a_held.insert(_presetModifier);  // bare key on plane 2 -> plane-2 slot
+    }
+}
+
 HKS::Bind HotbarHUD::BindOfSlot(std::uint32_t a_slot)
 {
     HKS::Bind b;
@@ -148,7 +197,7 @@ std::array<HotbarHUD::SlotView, HotbarHUD::kSlotCount> HotbarHUD::Snapshot()
     return out;
 }
 
-bool HotbarHUD::ExecuteSlot(std::uint32_t a_slot)
+bool HotbarHUD::ExecuteSlot(std::uint32_t a_slot, HKS::EquipDispatch::FireMode a_mode)
 {
     if (a_slot >= kSlotCount) {
         return false;
@@ -164,7 +213,7 @@ bool HotbarHUD::ExecuteSlot(std::uint32_t a_slot)
             if (items.empty()) {
                 return false;
             }
-            HKS::EquipDispatch::Fire(std::move(items));
+            HKS::EquipDispatch::Fire(std::move(items), a_mode);
             return true;
         }
     }
