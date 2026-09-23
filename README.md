@@ -33,14 +33,94 @@ See upstream [README](https://github.com/STB-Team/STB-Hotkey-System) and
 
 ## Building
 
-Same as upstream: `VCPKG_ROOT`, VS2022, triplet `x64-windows-static`.
+Deps come from `vcpkg.json` (CommonLibSSE-NG, spdlog, nlohmann_json, xbyak, simpleini, …),
+triplet `x64-windows-static`, and CMake needs `VCPKG_ROOT` set.
+
+### In the cloud — no Visual Studio on your PC
+
+`.github/workflows/build.yml` builds the DLL on GitHub's `windows-latest` runner and
+uploads **two artifacts**: `MMOHotbar-plugin` (the DLL + PDB) and `MMOHotbar-FOMOD` (the
+installer `package.ps1` stages, keycap SWFs and their credit notes included). Push to
+`main`, or trigger it by hand from **Actions → build → Run workflow**, then download the
+artifacts from the run's summary page.
+
+Two things the workflow does on purpose:
+
+- it uses the **`ci`** CMake preset, not `default`. Only `default` pins the
+  "Visual Studio 18 2026" generator and toolset **v145**, which is what a modern local
+  install has; no GitHub runner ships them (`windows-latest` has Visual Studio 2022), so
+  `ci` pins no generator at all and leaves `COPY_BUILD` off — `MMOHOTBAR_DEPLOY_DIR` is a
+  path on your own PC.
+- it builds **CommonLibSSE-NG from source** at the commit in `COMMONLIBSSE_NG_COMMIT`
+  rather than taking the vcpkg port, for the SE/AE misclassification reason documented at
+  the top of `CMakeLists.txt`.
+
+This route needs no compiler, CMake or vcpkg locally. The first run is slow (vcpkg compiles
+Boost and the NG dependencies); later runs restore them from the binary cache.
+
+### On your own machine
 
 ```powershell
 .\gen.ps1                       # configure (prompts for a deploy path)
 cmake --build build --config Release
 ```
 
-Deps from `vcpkg.json`: CommonLibSSE-NG, spdlog, nlohmann_json, xbyak, ...
+If your Visual Studio is 2022 or older, use the `ci` preset instead — the `default` preset
+will not configure:
+
+```powershell
+cmake --preset ci -DCommonLibSSEPath_NG=<path to a CommonLibSSE-NG checkout>
+```
+
+### Getting this onto GitHub
+
+This folder is a local `main` with **no remote yet**, so the only thing missing is publishing
+it once. After that every push to `main` runs the workflow above and you install straight
+from the run's artifacts — no compiler, CMake or vcpkg on your PC at any point.
+
+**Route 1 — VS Code, nothing extra to install.** VS Code already ships the GitHub sign-in
+provider (`github-authentication`) and the Pull Requests extension, and `git.path` already
+points at the git bundled with GitHub Desktop — which carries Git Credential Manager.
+
+1. `File → Open Folder…` → this folder.
+2. **Accounts** icon (bottom-left) → *Sign in with GitHub* → approve in the browser.
+3. **Source Control** (`Ctrl+Shift+G`) → **Publish Branch**. Name it `MMOHotbar`, and pick
+   **private** unless you want it public. VS Code creates the repository, sets `origin` and
+   pushes `main`.
+4. That push starts the build on its own. The **GitHub Actions** extension (already
+   installed) lists the run behind the Actions icon in the sidebar; the same run is at
+   `github.com/<your-name>/MMOHotbar/actions`. The **Actions → build → Run workflow** button
+   there re-runs it without committing anything.
+5. From the finished run's **Artifacts** box:
+   - `MMOHotbar-plugin` — `MMOHotbar.dll` and `MMOHotbar.pdb`
+   - `MMO-Hotbar-FOMOD` — the installer, with the keycap SWF and its credit note inside
+
+If a push ever asks for a password, git hands off to the **Git Credential Manager** inside
+GitHub Desktop's git (`credential.helper` is already `manager` there): one browser window,
+then the token is remembered.
+
+Two caveats worth knowing:
+
+- `git.path` points inside `…\GitHubDesktop\app-<version>\…`, and a GitHub Desktop update
+  changes `<version>` — VS Code would then say it cannot find git. Re-point the setting, or
+  install Git for Windows and point at `C:\Program Files\Git\cmd\git.exe`.
+- **Private is the safe default here.** `flash/*/STB_Keycaps.swf` is third-party art (SkyUI
+  Team; Vor/Vorganger + uranreactor) that may be redistributed only with credit and must not
+  be sold, which is exactly why each SWF is tracked together with its `credits.txt` — see
+  [`flash/README.md`](flash/README.md). A private repo sidesteps the question entirely.
+
+**Route 2 — GitHub Desktop** (already signed in on this PC): `File → Add Local Repository…`
+→ this folder → **Publish repository**. Same result, using the token it already stores.
+
+**Route 3 — by hand**, with any git on PATH:
+
+```powershell
+git remote add origin https://github.com/<your-name>/MMOHotbar.git
+git push -u origin main
+```
+
+The repository name does not affect the build: the DLL, the artifacts and the installer take
+their names from `CMakeLists.txt`, not from the repo.
 
 ## License & credits
 
