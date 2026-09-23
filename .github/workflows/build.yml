@@ -2,11 +2,24 @@
 # needed on your own PC. Push to main (or hit "Run workflow") and download the result from
 # the run's Artifacts box.
 #
-# Two things this file depends on:
-#   * the runner is windows-latest = Windows Server 2025 + Visual Studio 2022 Enterprise
-#     17.14. The "default" CMake preset pins the "Visual Studio 18 2026" generator and
-#     toolset v145 for local development, and neither exists on a runner -- hence the "ci"
-#     preset, which pins no generator at all. See CMakePresets.json.
+# Three things this file depends on:
+#   * the runner's toolchain. windows-latest is Windows Server 2025 and its Visual Studio is
+#     the 2026 one: vcpkg's own log ends up with "Compiler found: C:/Program Files/Microsoft
+#     Visual Studio/18/Enterprise/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe", i.e.
+#     MSVC 14.51 -- toolset v145 -- and the "ci" preset pins exactly that generator name.
+#     There is no fallback: a configure preset must name a generator, and a name the machine
+#     has no instance of dies with "could not find any instance of Visual Studio". The image's
+#     README still advertises VS 2022, but CMake finds no usable VS 17 instance on it, so
+#     "Visual Studio 17 2022" is not an option here either -- that was the first CI failure.
+#     The "default" preset keeps "Visual Studio 17 2022" on purpose: it is the one for the
+#     user's own machine, and VS 2026 does not support Windows 10 (see CMakePresets.json).
+#   * CMake 4.2 or newer. The image ships 3.31.6, in which "Visual Studio 18 2026" is not a
+#     known generator at all, so the step below downloads a pinned 4.x release (SHA-256
+#     checked) and Configure/Build call it by absolute path. It is deliberately NOT added to
+#     PATH: vcpkg must keep building the ports with the image's 3.31.6, which already did
+#     that successfully, while only our own configure/build runs need the newer generator.
+#     Skipping this dies at "could not find any suitable generator" -- after vcpkg has
+#     already spent ~25 minutes on the dependencies.
 #   * CommonLibSSE-NG is cloned and built from source rather than taken from vcpkg. The
 #     vcpkg port is 3.7.0 and classifies the runtime by MINOR version (case 6 -> AE), so an
 #     AE 1.7.x game would be mistaken for SE and the plugin would resolve SE offsets against
@@ -35,6 +48,11 @@ env:
   VCPKG_DEFAULT_TRIPLET: x64-windows-static
   # CommonLibSSE-NG revision to build against. Bump deliberately, not by accident.
   COMMONLIBSSE_NG_COMMIT: b93280e832f263dbef44e44cbe2936622a02f91a
+  # CMake the runner is told to use. Must be >= 4.2 for the "Visual Studio 18 2026" generator
+  # the "ci" preset names, which the image's own 3.31.6 does not have. SHA-256 of the official
+  # windows-x86_64 zip, from github.com/Kitware/CMake/releases/download/v4.4.3/cmake-4.4.3-SHA-256.txt.
+  CMAKE_VERSION: 4.4.3
+  CMAKE_ZIP_SHA256: 4d52ebab7193a698651639ed80d8d04fd903358843572cf44c7fd234cb7c26ab
 
 jobs:
   build:
@@ -83,17 +101,63 @@ jobs:
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
           restore-keys: vcpkg-${{ runner.os }}-
 
+      # The image's CMake (3.31.6) does not know the "Visual Studio 18 2026" generator --
+      # only CMake >= 4.2 does (verified empirically: 4.4.3 lists it, 3.31.6 cannot even name
+      # it). Downloaded pinned and SHA-256 checked against the release's own
+      # cmake-4.4.3-SHA-256.txt. Deliberately NOT put on PATH: Configure/Build invoke it by
+      # absolute path below, so vcpkg keeps using the image's 3.31.6 to build the ports --
+      # which already succeeded with exactly that setup.
+      - name: Install CMake 4.x
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "cmake-$($env:CMAKE_VERSION)-windows-x86_64.zip"
+          $url = "https://github.com/Kitware/CMake/releases/download/v$($env:CMAKE_VERSION)/cmake-$($env:CMAKE_VERSION)-windows-x86_64.zip"
+          curl.exe -sSfL --retry 3 -o $zip $url
+          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:CMAKE_ZIP_SHA256) {
+            throw "SHA-256 mismatch for ${url}: expected $($env:CMAKE_ZIP_SHA256), got $hash"
+          }
+          $dest = Join-Path $env:RUNNER_TEMP 'cmake4'
+          Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force
+          $bin = Join-Path $dest "cmake-$($env:CMAKE_VERSION)-windows-x86_64/bin"
+          $ourCmake = Join-Path $bin 'cmake.exe'
+          if (-not (Test-Path -LiteralPath $ourCmake)) {
+            throw "cmake.exe not found at $ourCmake"
+          }
+          "CMAKE_BIN=$bin" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          & $ourCmake --version
+
+      # Evidence trail for the 'ci' preset's description: which Visual Studio instances and
+      # cmake binaries this runner actually offers, printed right before Configure uses them.
+      - name: Report the Visual Studio instances
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (Test-Path -LiteralPath $vswhere) {
+            & $vswhere -all -products * -format json |
+              ConvertFrom-Json |
+              Select-Object displayName, installationVersion, installationPath |
+              Format-List
+          } else {
+            Write-Host 'vswhere.exe not found on this runner'
+          }
+          Write-Host "cmake on PATH: $(cmake --version | Select-Object -First 1)"
+          $ourCmake = Join-Path $env:CMAKE_BIN 'cmake.exe'
+          Write-Host "pinned CMake:  $(& $ourCmake --version | Select-Object -First 1)  ($ourCmake)"
+
       - name: Configure
         shell: pwsh
         run: |
           # Forward slashes on purpose: CMake reads "\a" and "\t" in a Windows path as escape
           # sequences and mangles the directory before it ever looks at it.
           $ng = (Join-Path $env:RUNNER_TEMP 'CommonLibSSE-NG').Replace('\', '/')
-          cmake --preset ci "-DCommonLibSSEPath_NG=$ng"
+          & "$env:CMAKE_BIN/cmake.exe" --preset ci "-DCommonLibSSEPath_NG=$ng"
 
       - name: Build
         shell: pwsh
-        run: cmake --build build --config Release --parallel
+        run: |
+          # Same pinned CMake as Configure -- same generator, same version, no surprises.
+          & "$env:CMAKE_BIN/cmake.exe" --build build --config Release --parallel
 
       - name: Check the plugin exists
         shell: pwsh

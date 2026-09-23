@@ -54,7 +54,7 @@
       "name": "msvc-flags"
     },
     {
-      "description": "Local development. The generator is pinned to VS 2022 instead of upstream's 'Visual Studio 18 2026' + v145 for two reasons: VS 2026 supports Windows 11 only (see Microsoft's system requirements), while VS 2022 Build Tools install on Windows 10 22H2; and this way a local build and a CI build compile with the same compiler. Change it back if you are on Windows 11 with VS 2026.",
+      "description": "Local development on Windows 10: VS 2026 supports Windows 11 only (see Microsoft's system requirements), while VS 2022 Build Tools install on Windows 10 22H2 -- hence a different generator here than the 'ci' preset uses. Both are v14x toolchains and share the ABI, so a DLL built by either one loads in the same game; toolset is left at the VS 2022 default (v143). On Windows 11 with VS 2026 installed, switch this to 'Visual Studio 18 2026' + v145 to match upstream.",
       "generator": "Visual Studio 17 2022",
       "inherits": [
         "cmake-dev",
@@ -71,8 +71,9 @@
           "value": "OFF"
         }
       },
-      "description": "GitHub Actions preset. 'Visual Studio 17 2022' on purpose: windows-latest ships VS 2022 17.14, and neither the 'Visual Studio 18 2026' generator nor toolset v145 exists there. A generator is mandatory in a configure preset -- CMake refuses to fall back to its own detection ('Preset \"ci\" missing field \"generator\"'). COPY_BUILD is off because MMOHOTBAR_DEPLOY_DIR is a local path that does not exist on a runner.",
-      "generator": "Visual Studio 17 2022",
+      "description": "GitHub Actions preset, matching what windows-latest actually ships: Visual Studio 18 2026 with MSVC 14.51, i.e. toolset v145. A 'Visual Studio 17 2022' generator does NOT work there any more -- configure dies with 'could not find any instance of Visual Studio' *after* vcpkg has already found .../Visual Studio/18/Enterprise/VC/Tools/MSVC/14.51.36231/cl.exe and installed every dependency. A generator is mandatory in a configure preset: CMake will not fall back to its own detection. See the 'Report the Visual Studio instances' step in .github/workflows/build.yml for the evidence trail. COPY_BUILD is off because MMOHOTBAR_DEPLOY_DIR is a local path that does not exist on a runner.",
+      "generator": "Visual Studio 18 2026",
+      "toolset": "v145",
       "inherits": [
         "cmake-dev",
         "vcpkg",
