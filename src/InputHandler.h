@@ -64,19 +64,17 @@ namespace HKS
 		// Called when a chord hits its key limit and when its keys are released.
 		void CommitCapture();
 
-		// Store one binding (assign + auto-favorite). Separate from CommitCapture because
-		// the key-conflict prompt is asynchronous: on a clash this is deferred into the
-		// message box callback and only runs if the player confirms. a_group picks which
-		// modifier's meaning applies: replace the chord, or stack onto it.
-		void ApplyAssignment(Bind a_bind, ItemId a_target, bool a_group);
+		// Store one binding (assign + auto-favorite) in the bank that was visible when
+		// capture began. Separate from CommitCapture because the key-conflict prompt is
+		// asynchronous: on a clash this is deferred into the message-box callback.
+		void ApplyAssignment(Bind a_bind, ItemId a_target, bool a_group, std::uint8_t a_bank);
 
 		std::unordered_set<std::uint32_t> _kbHeld;
 		std::unordered_set<std::uint32_t> _msHeld;
 		std::unordered_set<std::uint32_t> _padHeld;
 
-		// MMO preset tap-toggle. The preset key (X) flips the hotbar plane on a LONE
-		// tap only -- press and release with no other key in between. Holding it keeps
-		// its chord meaning, so X+1 still reaches the other plane without flipping.
+		// MMO preset tap-toggle. The preset key (X by default) flips banks only on a
+		// lone press-and-release; it is reserved and can never be captured or fired.
 		bool _presetDown = false;
 		bool _presetChorded = false;
 

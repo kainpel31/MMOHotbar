@@ -10,6 +10,11 @@ out/
 *.swf
 !flash/SkyUI/STB_Keycaps.swf
 !flash/Untarnished/STB_Keycaps.swf
+# The hotbar HUD movie is OURS (tools/build_hud_swf.py builds it from our own slot art,
+# and it embeds no icon, keycap, font or SWF of anyone else's), so unlike the UI-mod art
+# above it is tracked and shipped. Without it the installer would ship no hotbar at all
+# -- package.ps1 could only warn, because CI cannot rebuild it: the source art is local.
+!dist/Interface/MMOHotbar/Hotbar.swf
 /Skyui/
 /Untarnished/
 flash/**/build/
@@ -33,3 +38,4 @@ AGENTS.md
 /dist/Hotbar.swf.xml
 /tools/_out/
 /tools/swfdump/
+__pycache__/

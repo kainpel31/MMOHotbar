@@ -14,6 +14,7 @@ using namespace RE;
 #include "FavoritesHook.h"
 #include "HotbarConsole.h"
 #include "HotbarHUD.h"
+#include "HotbarHUDView.h"
 #include "InputHandler.h"
 #include "InventoryIcons.h"
 #include "Localization.h"
@@ -38,6 +39,7 @@ static void SKSEMessageHandler(SKSE::MessagingInterface::Message* message)
 			HKS::InputHandler::Register();
 			HKS::PickupWatch::Register();
 			MMO::HotbarHUD::Register();
+			MMO::HotbarHUDView::Install();
 			MMO::HotbarConsole::Register();
 		}
 		break;

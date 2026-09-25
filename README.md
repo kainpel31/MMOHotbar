@@ -1,13 +1,13 @@
 # MMO Hotbar
 
-MMO-style **24-slot hotbar** SKSE64 plugin — a **full fork** of
+MMO-style **12-slot hotbar** SKSE64 plugin — a **full fork** of
 [STB Hotkey System](https://github.com/STB-Team/STB-Hotkey-System)
 (**GPL-3.0-only**, see [LICENSE](LICENSE)) plus an MMO view layer, all in
 **one SKSE DLL** (`MMOHotbar.dll`). No separate addon plugin needed.
 
-Slots **1–12** = keyboard keys `1..=`, slots **13–24** = `X+1..X+=`
-(preset modifier from `MMOHotbar.ini`, default `45 = X`).
-Bind through the normal assign flow and the slot lights up automatically.
+The bar has **two independent 12-slot preset banks**. Tap `X` (configurable in
+`MMOHotbar.ini`) to switch banks; the same key can carry a different item in each
+preset. Bind through the normal assign flow and the visible bank updates automatically.
 
 ## Core (from STB, unchanged behaviour)
 
@@ -23,16 +23,14 @@ See upstream [README](https://github.com/STB-Team/STB-Hotkey-System) and
 
 ## MMO layer (new in this fork)
 
-- `src/HotbarHUD.{h,cpp}` — 24-slot view over the chord table
+- `src/HotbarHUD.{h,cpp}` — 12-slot view over the active preset bank
   (`BindOfSlot` / `SlotOfBind` / `Snapshot` / `ExecuteSlot` / `SlotLabel`).
-- `src/HotbarConsole.{h,cpp}` — Papyrus API `MMOHotbar.FireSlot(1-24)`,
-  `MMOHotbar.FireSlotSwap(1-24)` (right-click hand swap), `MMOHotbar.GetPreset()`
-  and `MMOHotbar.DumpSlots()` so a HUD/SWF can fire slots by script.
-- Preset toggle: TAP `X` alone flips preset 1 ↔ 2 (persisted in the co-save
-  `PRST` record); HOLD `X` + key reaches the other preset once without flipping.
-  Binding follows the visible preset (`Ctrl+1` on preset 2 stores the `{X,1}` chord).
-- `RMB+hotkey` moves a 1H weapon/staff/spell/scroll to the other hand
-  (`EquipDispatch::FireMode::kSwapHands`, both press orders work).
+- `src/HotbarConsole.{h,cpp}` — Papyrus API `MMOHotbar.FireSlot(1-12)`,
+  `MMOHotbar.GetPreset()` and `MMOHotbar.DumpSlots()` so a HUD/SWF can fire slots
+  by script. `MMOHotbar.FireSlotSwap` remains as a deprecated alias of `FireSlot`.
+- Preset toggle: tapping `X` alone flips preset 1 ↔ 2 (persisted in the co-save
+  `PRST` record). `X` is reserved: it never forms a binding, and assignment,
+  keycaps, firing, and plugin lookups always follow the visible bank.
 - `dist/SKSE/Plugins/MMOHotbar.ini` — same keys as STB plus
   `[Hotbar] iPresetModifierScanCode = 45`.
 - DLL/plugin renamed to `MMOHotbar` v2.0.0.
@@ -80,9 +78,10 @@ cmake --preset ci -DCommonLibSSEPath_NG=<path to a CommonLibSSE-NG checkout>
 
 ### Getting this onto GitHub
 
-This folder is a local `main` with **no remote yet**, so the only thing missing is publishing
-it once. After that every push to `main` runs the workflow above and you install straight
-from the run's artifacts — no compiler, CMake or vcpkg on your PC at any point.
+This folder is already published: `origin` is `kainpel31/MMOHotbar`. Every push to `main`
+runs the workflow above, and you install straight from the run's artifacts — no compiler,
+CMake or vcpkg on your PC at any point. The routes below are kept for setting up a
+different repository.
 
 **Route 1 — VS Code, nothing extra to install.** VS Code already ships the GitHub sign-in
 provider (`github-authentication`) and the Pull Requests extension, and `git.path` already

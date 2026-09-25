@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <unordered_set>
 #include <vector>
 
@@ -115,10 +116,20 @@ namespace HKS
 	// Order matters. Hand items are handed out in the order they were added: the first
 	// weapon/spell takes the right hand, the second the left. That is also the order the
 	// player built the group in, so it is predictable without any extra UI.
+	// The hotbar keeps two independent banks of bindings ("presets"). A chord may be
+	// bound once per bank, so the same key can carry a different item in preset 1 and
+	// preset 2 without the two colliding. The preset key only flips which bank is
+	// live -- it is never part of the chord itself and never has to be held.
+	constexpr std::uint8_t kBankCount = 2;
+
 	struct Hotkey
 	{
 		Bind                bind;
 		std::vector<ItemId> items;
+
+		// Bank this binding lives in: 0 = preset 1, 1 = preset 2. Defaults to 0 so
+		// co-save data from older versions loads as an ordinary preset-1 binding.
+		std::uint8_t bank = 0;
 
 		[[nodiscard]] bool IsGroup() const { return items.size() > 1; }
 

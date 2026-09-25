@@ -1,5 +1,6 @@
 #include "VanillaMigration.h"
 
+#include "HotbarHUDView.h"
 #include "HotkeyManager.h"
 #include "InventoryIcons.h"
 #include "Settings.h"
@@ -27,7 +28,7 @@ namespace HKS::VanillaMigration
 		bool BindTaken(const Bind& a_bind)
 		{
 			std::unordered_set<std::uint32_t> held(a_bind.keys.begin(), a_bind.keys.end());
-			return HotkeyManager::GetSingleton()->ResolveChord(a_bind.device, held) != nullptr;
+			return HotkeyManager::GetSingleton()->ResolveChord(a_bind.device, held, 0) != nullptr;
 		}
 
 		// Identity for one specific ExtraDataList (the exact instance carrying the hotkey).
@@ -84,9 +85,9 @@ namespace HKS::VanillaMigration
 
 					// Keep our own bind if this item already has one; just retire the
 					// vanilla slot. Otherwise adopt it, unless the key is already taken.
-					const bool ours = mgr->FindByItem(id) != nullptr;
+					const bool ours = mgr->FindByItem(id, 0) != nullptr;
 					if (!ours && !BindTaken(bind)) {
-						mgr->Assign(bind, id);
+						mgr->Assign(bind, id, 0);
 						++migrated;
 						logger::info("migrated vanilla item hotkey: slot {} -> key {} form {:08X} ench {:08X} uid {} hp {}",
 							slot, slot + 1, id.form, id.ench, id.uid, id.health);
@@ -118,9 +119,9 @@ namespace HKS::VanillaMigration
 				id.form = form->GetFormID();
 				const Bind bind = NumberKeyBind(static_cast<std::uint8_t>(i));
 
-				const bool ours = mgr->FindByForm(id.form) != nullptr;
+				const bool ours = mgr->FindByForm(id.form, 0) != nullptr;
 				if (!ours && !BindTaken(bind)) {
-					mgr->Assign(bind, id);
+					mgr->Assign(bind, id, 0);
 					++migrated;
 					logger::info("migrated vanilla magic hotkey: slot {} -> key {} form {:08X}",
 						i, i + 1, id.form);
@@ -141,6 +142,7 @@ namespace HKS::VanillaMigration
 		const int magic = MigrateMagic();
 		if (items || magic) {
 			InventoryIcons::MarkDirty();
+			MMO::HotbarHUDView::MarkDirty();
 			logger::info("vanilla hotkey migration: {} item(s), {} magic adopted", items, magic);
 		}
 	}

@@ -34,7 +34,7 @@ namespace HKS
 
 				// Only forms we still hold a bind for -- match on base form (favorite state
 				// is per base object, and a fungible potion/gear bind is form-only anyway).
-				if (!HotkeyManager::GetSingleton()->FindByForm(a_event->baseObj)) {
+				if (!HotkeyManager::GetSingleton()->HasForm(a_event->baseObj)) {
 					if (Settings::DebugLog()) {  // fires on every single pickup
 						logger::info("pickup {:08X}: no binding for this form, ignoring",
 							a_event->baseObj);

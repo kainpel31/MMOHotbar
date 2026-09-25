@@ -1,4 +1,5 @@
 #include "EquipDispatch.h"
+#include "HotbarHUD.h"
 #include "HotkeyManager.h"
 #include "InputHandler.h"
 
@@ -65,12 +66,14 @@ namespace HKS::PluginAPI
 
 			[[nodiscard]] API::Chord GetHotkey(std::uint32_t a_form) const noexcept override
 			{
-				return ToChord(HotkeyManager::GetSingleton()->BindOfForm(static_cast<RE::FormID>(a_form)));
+				return ToChord(HotkeyManager::GetSingleton()->BindOfForm(
+					static_cast<RE::FormID>(a_form), MMO::HotbarHUD::ActiveBank()));
 			}
 
 			[[nodiscard]] API::Chord GetHotkeyExact(const API::Binding& a_entry) const noexcept override
 			{
-				return ToChord(HotkeyManager::GetSingleton()->BindOfItem(FromBinding(a_entry)));
+				return ToChord(HotkeyManager::GetSingleton()->BindOfItem(
+					FromBinding(a_entry), MMO::HotbarHUD::ActiveBank()));
 			}
 
 		private:

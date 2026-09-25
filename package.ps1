@@ -38,6 +38,26 @@ Copy-Item -LiteralPath $dll -Destination (Join-Path $core 'SKSE/Plugins')
 Copy-Item -Path (Join-Path $root 'dist/SKSE/Plugins/*.ini') -Destination (Join-Path $core 'SKSE/Plugins')
 Copy-Item -Path (Join-Path $root 'dist/Interface/*.txt') -Destination (Join-Path $core 'Interface')
 
+# The hotbar HUD movie. It ships from dist/Interface/MMOHotbar/ and contains no third-party
+# art: item icons and keycaps are loaded at run time from the SWF files the player already
+# has installed (SkyUI's icons, and whichever STB_Keycaps.swf the installer picked above).
+#
+# This one is a hard error rather than a warning. Hotbar.swf is OUR build and is tracked in
+# git (.gitignore re-includes it), so if it is absent the checkout is broken -- and the
+# alternative, shipping an installer whose headline feature silently does nothing, is worse
+# than a failed build. It also cannot be rebuilt on CI: the source slot art is local-only.
+$hud = Join-Path $root 'dist/Interface/MMOHotbar'
+$hudSwf = Join-Path $hud 'Hotbar.swf'
+if (-not (Test-Path -LiteralPath $hudSwf)) {
+    throw "dist/Interface/MMOHotbar/Hotbar.swf is missing. It is tracked in git; run 'git status' -- if it is deleted, restore it with 'git checkout -- dist/Interface/MMOHotbar/Hotbar.swf'. Rebuilding it needs the local slot art: python tools/build_hud_swf.py"
+}
+Copy-Item -LiteralPath $hud -Destination (Join-Path $core 'Interface') -Recurse
+
+# api/MMOHotbarPapyrus.psc is deliberately NOT installed. The plugin registers the
+# MMOHotbar natives itself, so the mod is complete without it, and a .psc dropped into
+# Scripts/ is inert anyway -- only a compiled .pex runs. It is tracked in the repository as
+# the reference for script authors; anyone who wants the wrapper compiles it themselves.
+
 # --- one keycap set, chosen in the installer -------------------------------------------
 foreach ($set in 'SkyUI', 'Untarnished') {
     $swf = Join-Path $root "flash/$set/STB_Keycaps.swf"

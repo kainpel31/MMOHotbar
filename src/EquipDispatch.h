@@ -15,18 +15,7 @@ namespace HKS::EquipDispatch
 	// Several items are a group, which toggles as a set: hand items are dealt out in order
 	// (first to the right hand, second to the left), and once the whole set is on, the next
 	// press takes it off.
-	//
-	// kSwapHands: RMB+hotkey for one-handed weapons, staves, spells and scrolls -- the item
-	// moves to the hand it is NOT in right now (right -> left, left -> right). Anything not
-	// currently in exactly one hand, or that has no second hand to move to (shields, torches,
-	// two-handers, shouts), falls back to the normal behaviour on the same press.
-	enum class FireMode : std::uint8_t
-	{
-		kNormal = 0,
-		kSwapHands = 1,
-	};
-
-	void Fire(std::vector<ItemId> a_items, FireMode a_mode = FireMode::kNormal);
+	void Fire(std::vector<ItemId> a_items);
 
 	// Which hand(s) the player is holding this form in right now, as a HandMask. Read at
 	// assignment time and stored on the binding, so the hotkey can put the form back where

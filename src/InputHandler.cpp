@@ -3,6 +3,7 @@
 #include "EquipDispatch.h"
 #include "Favorites.h"
 #include "HotbarHUD.h"
+#include "HotbarHUDView.h"
 #include "HotkeyManager.h"
 #include "InventoryIcons.h"
 #include "KeyConflict.h"
@@ -17,8 +18,6 @@ namespace HKS
 {
 	namespace
 {
-// SKSE mouse button ids: 0 = left, 1 = right, 2 = middle (see MenuInputBlock).
-constexpr std::uint32_t kRightMouseButton = 1;
 }  // namespace
 
 InputHandler* InputHandler::GetSingleton()
@@ -112,10 +111,18 @@ InputHandler* InputHandler::GetSingleton()
 
 	std::vector<ItemId> InputHandler::ResolveForKey(RE::INPUT_DEVICE a_device, std::uint32_t a_key) const
 	{
+		const auto presetKey = MMO::HotbarHUD::PresetModifier();
+		if (a_device == RE::INPUT_DEVICE::kKeyboard && presetKey != 0 && a_key == presetKey) {
+			return {};
+		}
+
 		auto held = const_cast<InputHandler*>(this)->HeldFor(a_device);
-		held.insert(a_key);  // the just-pressed key may not be in the set yet
-		MMO::HotbarHUD::TranslateForFire(a_device, held, a_key);
-		return HotkeyManager::GetSingleton()->ResolveChordItems(a_device, held, a_key);
+		held.insert(a_key);
+		if (a_device == RE::INPUT_DEVICE::kKeyboard && presetKey != 0) {
+			held.erase(presetKey);  // reserved: legacy X-containing chords can no longer fire
+		}
+		return HotkeyManager::GetSingleton()->ResolveChordItems(
+			a_device, held, MMO::HotbarHUD::ActiveBank(), a_key);
 	}
 
 	bool InputHandler::FiringSuppressed()
@@ -163,7 +170,8 @@ InputHandler* InputHandler::GetSingleton()
 	// Actually store the binding. Split out of CommitCapture because the key-conflict
 	// prompt is asynchronous: when it fires we hand this to the message box callback and
 	// run it only if the player confirms.
-	void InputHandler::ApplyAssignment(Bind a_bind, ItemId a_target, bool a_group)
+	void InputHandler::ApplyAssignment(
+		Bind a_bind, ItemId a_target, bool a_group, std::uint8_t a_bank)
 	{
 		// Snapshot which hand(s) the form is in right now, so the hotkey puts it back there
 		// on every press instead of leaving the choice to the engine -- SkyUI's saved equip
@@ -174,12 +182,14 @@ InputHandler* InputHandler::GetSingleton()
 		}
 
 		auto*      mgr = HotkeyManager::GetSingleton();
-		const auto res = a_group ? mgr->AddToGroup(a_bind, a_target) : mgr->Assign(a_bind, a_target);
-		logger::info("{} chord ({} keys, dev {}) -> form {:08X} ench {:08X} hp {} hands {} (result {})",
-			a_group ? "grouped" : "assigned",
+		const auto res = a_group ? mgr->AddToGroup(a_bind, a_target, a_bank)
+		                         : mgr->Assign(a_bind, a_target, a_bank);
+		logger::info("{} bank {} chord ({} keys, dev {}) -> form {:08X} ench {:08X} hp {} hands {} (result {})",
+			a_group ? "grouped" : "assigned", static_cast<int>(a_bank) + 1,
 			a_bind.keys.size(), static_cast<int>(a_bind.device), a_target.form, a_target.ench,
 			a_target.health, a_target.hands, static_cast<int>(res));
 		InventoryIcons::MarkDirty();  // re-stamp menu keycaps (handles displaced bindings)
+		MMO::HotbarHUDView::MarkDirty();  // the bar's slots come from the same table
 		// Favorite it right away (star + shows in Favorites with our badge), like a
 		// vanilla F press. Prefer the game's real-entry path (live refresh); fall back
 		// to the by-form path otherwise.
@@ -197,9 +207,7 @@ InputHandler* InputHandler::GetSingleton()
 			bind.device = _capDevice;
 			bind.keys.assign(_capChord.begin(), _capChord.end());
 			bind.Canonicalize();
-			// MMO preset: with plane 2 showing, a bare row key is stored as its
-			// {presetModifier, key} chord, so Ctrl+1 binds the slot you are looking at.
-			MMO::HotbarHUD::TranslateForCapture(bind);
+			const auto bank = MMO::HotbarHUD::ActiveBank();
 
 			// If one of the chord's keys already drives a vanilla gameplay control, pressing
 			// it in game would fire both. Ask before committing -- unless the player turned
@@ -221,9 +229,9 @@ InputHandler* InputHandler::GetSingleton()
 				const bool   group = _capGroup;
 				ShowMessageBox(
 					Localization::Format("$STB_HK_KeyConflict_Body", { clashKey, clashControl }),
-					[bind, target, group](unsigned int a_button) {
+					[bind, target, group, bank](unsigned int a_button) {
 						if (a_button == 0) {
-							GetSingleton()->ApplyAssignment(bind, target, group);
+							GetSingleton()->ApplyAssignment(bind, target, group, bank);
 						} else {
 							logger::info("assign cancelled by player (key conflict)");
 						}
@@ -232,7 +240,7 @@ InputHandler* InputHandler::GetSingleton()
 						Localization::Get("$STB_HK_KeyConflict_Cancel") });
 				logger::info("key conflict: {} is bound to \"{}\" -- prompting", clashKey, clashControl);
 			} else {
-				ApplyAssignment(bind, _capTarget, _capGroup);
+				ApplyAssignment(bind, _capTarget, _capGroup, bank);
 			}
 		}
 		else if (!_capChord.empty()) {
@@ -271,35 +279,6 @@ InputHandler* InputHandler::GetSingleton()
 		const std::uint32_t modKey = MenuAssign::UsableModifier(Settings::AssignModifier());
 		const std::uint32_t groupKey = MenuAssign::UsableModifier(Settings::GroupModifier());
 
-		// ---- MMO preset tap-toggle (X alone flips preset 1 <-> 2) ----
-		// A lone tap (press + release, nothing else in between) flips the plane.
-		// Holding it keeps its chord meaning: X+key reaches the other plane once
-		// without flipping. It never steals the assign/group modifiers, and the
-		// plane key itself never fires a hotkey.
-		{
-			const auto presetKey = MMO::HotbarHUD::PresetModifier();
-			if (presetKey != 0 && presetKey != modKey && presetKey != groupKey && !_capturing && !FiringSuppressed()) {
-				if (idCode == presetKey) {
-					if (button->IsDown()) {
-						_presetDown = true;
-						_presetChorded = false;
-					} else if (!pressed) {
-						if (_presetDown && !_presetChorded) {
-							MMO::HotbarHUD::TogglePreset();
-						}
-						_presetDown = false;
-						_presetChorded = false;
-					}
-					continue;  // the plane key itself never fires a hotkey
-				} else if (_presetDown && button->IsDown()) {
-					_presetChorded = true;  // something else went down: a hold, not a tap
-				}
-			} else if (presetKey != 0 && idCode == presetKey && !pressed) {
-				_presetDown = false;
-				_presetChorded = false;
-			}
-		}
-
 		if (!assignOpen && _capturing) {  // menu closed mid-capture -> abandon
 			_capturing = false;
 			_capGroup = false;
@@ -323,6 +302,38 @@ InputHandler* InputHandler::GetSingleton()
 				held.insert(idCode);
 			} else {
 				held.erase(idCode);
+			}
+
+			// The preset key is a tap-only bank toggle and is never part of a binding.
+			// A pre-held key or any other button pressed before release makes it a hold,
+			// not a tap, so the visible bank does not change.
+			const auto presetKey = MMO::HotbarHUD::PresetModifier();
+			if (device == RE::INPUT_DEVICE::kKeyboard && presetKey != 0 &&
+				presetKey != modKey && presetKey != groupKey && !_capturing && !FiringSuppressed()) {
+				if (idCode == presetKey) {
+					if (button->IsDown()) {
+						if (!_presetDown) {
+							_presetDown = true;
+							_presetChorded = held.size() > 1;
+						}
+					} else if (!pressed) {
+						if (_presetDown && !_presetChorded) {
+							MMO::HotbarHUD::TogglePreset();
+							InventoryIcons::MarkDirty();
+							MMO::HotbarHUDView::MarkDirty();
+						}
+						_presetDown = false;
+						_presetChorded = false;
+					}
+					continue;
+				}
+				if (_presetDown && button->IsDown()) {
+					_presetChorded = true;
+				}
+			} else if (device == RE::INPUT_DEVICE::kKeyboard && presetKey != 0 &&
+				idCode == presetKey && !pressed) {
+				_presetDown = false;
+				_presetChorded = false;
 			}
 
 			// ---- assignment capture (an assign-menu open) ----
@@ -357,6 +368,9 @@ InputHandler* InputHandler::GetSingleton()
 					continue;  // a modifier key never fires a hotkey
 				}
 				if (_capturing && (device == RE::INPUT_DEVICE::kKeyboard || device == RE::INPUT_DEVICE::kMouse)) {
+					if (device == RE::INPUT_DEVICE::kKeyboard && idCode == MMO::HotbarHUD::PresetModifier()) {
+						continue;  // the bank toggle can never become a binding
+					}
 					if (button->IsDown()) {
 						const std::size_t maxKeys = Settings::EnableChords() ? kMaxChord : 1;
 						if (_capChord.empty()) {
@@ -391,37 +405,15 @@ InputHandler* InputHandler::GetSingleton()
 			}
 
 			// Only a chord that CONTAINS idCode is returned, so the matched bind is one this
-			// keystroke actually completes (an unrelated held/phantom key can't shadow it
-			// and drop the press). The members come back copied: the store is mutated from
-			// the main thread, so a pointer into it must not outlive the lock.
-			// MMO preset: a bare row key means the chord of the ACTIVE plane. Resolve on
-			// a copy -- the live held-set must not gain a phantom modifier.
-			std::unordered_set<std::uint32_t> fireHeld = held;
-			MMO::HotbarHUD::TranslateForFire(device, fireHeld, idCode);
-			auto items = HotkeyManager::GetSingleton()->ResolveChordItems(device, fireHeld, idCode);
+			// keystroke actually completes. Resolve on a copy and remove the reserved preset
+			// key, so old saves containing X can never fire through the new toggle path.
+			auto fireHeld = held;
+			if (device == RE::INPUT_DEVICE::kKeyboard) {
+				fireHeld.erase(MMO::HotbarHUD::PresetModifier());
+			}
+			auto items = HotkeyManager::GetSingleton()->ResolveChordItems(
+				device, fireHeld, MMO::HotbarHUD::ActiveBank(), idCode);
 			if (items.empty()) {
-				// Other order: row key held first, right-click second. The key already fired
-				// normally on its press; the click moves a swappable single item (1H weapon,
-				// staff, spell, scroll) to the other hand instead of toggling it.
-				if (device == RE::INPUT_DEVICE::kMouse && idCode == kRightMouseButton && button->IsDown()) {
-					std::uint32_t row = 0;
-					int rows = 0;
-					for (const auto k : _kbHeld) {
-						if (MMO::HotbarHUD::IsRowKey(k)) {
-							row = k;
-							++rows;
-						}
-					}
-					if (rows == 1) {
-						std::unordered_set<std::uint32_t> clickHeld = _kbHeld;
-						MMO::HotbarHUD::TranslateForFire(RE::INPUT_DEVICE::kKeyboard, clickHeld, row);
-						items = HotkeyManager::GetSingleton()->ResolveChordItems(RE::INPUT_DEVICE::kKeyboard, clickHeld, row);
-						std::erase_if(items, [](const ItemId& a_id) { return EquipDispatch::IsClaimed(a_id); });
-						if (!items.empty()) {
-							EquipDispatch::Fire(std::move(items), EquipDispatch::FireMode::kSwapHands);
-						}
-					}
-				}
 				continue;
 			}
 			// A mod that equipped one of these through the plugin API a moment ago has taken
@@ -432,12 +424,7 @@ InputHandler* InputHandler::GetSingleton()
 			if (items.empty()) {
 				continue;
 			}
-			// Right mouse held with the hotkey: move a one-handed item to the other hand
-			// (anything else falls back to the normal toggle inside EquipDispatch).
-			const bool swapHands = device == RE::INPUT_DEVICE::kKeyboard &&
-			                       IsHeld(RE::INPUT_DEVICE::kMouse, kRightMouseButton);
-			EquipDispatch::Fire(std::move(items),
-			                    swapHands ? EquipDispatch::FireMode::kSwapHands : EquipDispatch::FireMode::kNormal);
+			EquipDispatch::Fire(std::move(items));
 		}
 
 		return RE::BSEventNotifyControl::kContinue;

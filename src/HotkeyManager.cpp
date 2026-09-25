@@ -1,5 +1,7 @@
 #include "HotkeyManager.h"
 
+#include <algorithm>
+
 namespace HKS
 {
 	HotkeyManager* HotkeyManager::GetSingleton()
@@ -10,13 +12,21 @@ namespace HKS
 
 	namespace
 	{
-		// Take the item off every chord that holds it, dropping any chord left empty.
-		// One item lives on exactly one chord: two keycaps on one row would be ambiguous,
-		// and "which key does this equip" has to have a single answer.
-		bool DetachItem(std::vector<Hotkey>& a_hotkeys, const ItemId& a_id)
+		bool InBank(const Hotkey& a_hotkey, std::uint8_t a_bank)
+		{
+			return a_hotkey.bank == a_bank;
+		}
+
+		// One item lives on at most one chord per bank. Across banks it is independent:
+		// both presets may contain the same item, and removing it globally is a separate
+		// operation used when its shared favorite state is lost.
+		bool DetachItem(std::vector<Hotkey>& a_hotkeys, const ItemId& a_id, std::uint8_t a_bank)
 		{
 			bool removed = false;
 			for (auto& h : a_hotkeys) {
+				if (!InBank(h, a_bank)) {
+					continue;
+				}
 				const auto before = h.items.size();
 				std::erase_if(h.items, [&](const ItemId& i) { return i.Same(a_id); });
 				removed = removed || h.items.size() != before;
@@ -26,36 +36,39 @@ namespace HKS
 		}
 	}
 
-	HotkeyManager::AssignResult HotkeyManager::Assign(const Bind& a_bind, const ItemId& a_id)
+	HotkeyManager::AssignResult HotkeyManager::Assign(
+		const Bind& a_bind, const ItemId& a_id, std::uint8_t a_bank)
 	{
 		std::scoped_lock lk(_lock);
 
-		// Same chord, and it already holds just this item -> toggle off.
+		// Same chord, same bank, and it already holds just this item -> toggle off.
 		for (auto it = _hotkeys.begin(); it != _hotkeys.end(); ++it) {
-			if (it->bind == a_bind && it->items.size() == 1 && it->items.front().Same(a_id)) {
+			if (InBank(*it, a_bank) && it->bind == a_bind && it->items.size() == 1 &&
+				it->items.front().Same(a_id)) {
 				_hotkeys.erase(it);
 				return AssignResult::kRemoved;
 			}
 		}
 
-		// A plain assignment replaces the chord wholesale -- including a group that was
-		// built on it. That is the escape hatch: Ctrl+K on one item resets K to that item.
-		bool replacing = std::erase_if(_hotkeys, [&](const Hotkey& h) { return h.bind == a_bind; }) > 0;
-		replacing = DetachItem(_hotkeys, a_id) || replacing;
+		// A plain assignment replaces the chord wholesale in this bank, including a group.
+		bool replacing = std::erase_if(_hotkeys, [&](const Hotkey& h) {
+			return InBank(h, a_bank) && h.bind == a_bind;
+		}) > 0;
+		replacing = DetachItem(_hotkeys, a_id, a_bank) || replacing;
 
-		_hotkeys.push_back(Hotkey{ a_bind, { a_id } });
+		_hotkeys.push_back(Hotkey{ a_bind, { a_id }, a_bank });
 		return replacing ? AssignResult::kReplaced : AssignResult::kAdded;
 	}
 
-	HotkeyManager::AssignResult HotkeyManager::AddToGroup(const Bind& a_bind, const ItemId& a_id)
+	HotkeyManager::AssignResult HotkeyManager::AddToGroup(
+		const Bind& a_bind, const ItemId& a_id, std::uint8_t a_bank)
 	{
 		std::scoped_lock lk(_lock);
 
 		for (auto it = _hotkeys.begin(); it != _hotkeys.end(); ++it) {
-			if (it->bind != a_bind || !it->Has(a_id)) {
+			if (!InBank(*it, a_bank) || it->bind != a_bind || !it->Has(a_id)) {
 				continue;
 			}
-			// Already a member -> the same keystroke takes it back out.
 			std::erase_if(it->items, [&](const ItemId& i) { return i.Same(a_id); });
 			if (it->items.empty()) {
 				_hotkeys.erase(it);
@@ -63,60 +76,73 @@ namespace HKS
 			return AssignResult::kRemoved;
 		}
 
-		const bool moved = DetachItem(_hotkeys, a_id);
-
-		// DetachItem may have deleted the target chord (if the item was its only member),
-		// so look it up again rather than caching the iterator.
+		const bool moved = DetachItem(_hotkeys, a_id, a_bank);
 		for (auto& h : _hotkeys) {
-			if (h.bind == a_bind) {
+			if (InBank(h, a_bank) && h.bind == a_bind) {
 				h.items.push_back(a_id);
 				return moved ? AssignResult::kReplaced : AssignResult::kAdded;
 			}
 		}
 
-		_hotkeys.push_back(Hotkey{ a_bind, { a_id } });
+		_hotkeys.push_back(Hotkey{ a_bind, { a_id }, a_bank });
 		return moved ? AssignResult::kReplaced : AssignResult::kAdded;
 	}
 
-	bool HotkeyManager::RemoveByBind(const Bind& a_bind)
+	bool HotkeyManager::RemoveByBind(const Bind& a_bind, std::uint8_t a_bank)
 	{
 		std::scoped_lock lk(_lock);
-		return std::erase_if(_hotkeys, [&](const Hotkey& h) { return h.bind == a_bind; }) > 0;
+		return std::erase_if(_hotkeys, [&](const Hotkey& h) {
+			return InBank(h, a_bank) && h.bind == a_bind;
+		}) > 0;
 	}
 
 	bool HotkeyManager::RemoveByItem(const ItemId& a_id)
 	{
 		std::scoped_lock lk(_lock);
-		return DetachItem(_hotkeys, a_id);
+		bool removed = false;
+		for (auto& h : _hotkeys) {
+			const auto before = h.items.size();
+			std::erase_if(h.items, [&](const ItemId& i) { return i.Same(a_id); });
+			removed = removed || h.items.size() != before;
+		}
+		std::erase_if(_hotkeys, [](const Hotkey& h) { return h.items.empty(); });
+		return removed;
 	}
 
-	const Hotkey* HotkeyManager::FindByItem(const ItemId& a_id) const
+	const Hotkey* HotkeyManager::FindByItem(const ItemId& a_id, std::uint8_t a_bank) const
 	{
 		std::scoped_lock lk(_lock);
 		for (const auto& h : _hotkeys) {
-			if (h.Has(a_id)) {
+			if (InBank(h, a_bank) && h.Has(a_id)) {
 				return &h;
 			}
 		}
 		return nullptr;
 	}
 
-	const Hotkey* HotkeyManager::FindByForm(RE::FormID a_form) const
+	const Hotkey* HotkeyManager::FindByForm(RE::FormID a_form, std::uint8_t a_bank) const
 	{
 		std::scoped_lock lk(_lock);
 		for (const auto& h : _hotkeys) {
-			if (h.HasForm(a_form)) {
+			if (InBank(h, a_bank) && h.HasForm(a_form)) {
 				return &h;
 			}
 		}
 		return nullptr;
 	}
 
-	const Hotkey* HotkeyManager::FindByBind(const Bind& a_bind) const
+	bool HotkeyManager::HasForm(RE::FormID a_form) const
+	{
+		std::scoped_lock lk(_lock);
+		return std::any_of(_hotkeys.begin(), _hotkeys.end(),
+			[&](const Hotkey& h) { return h.HasForm(a_form); });
+	}
+
+	const Hotkey* HotkeyManager::FindByBind(const Bind& a_bind, std::uint8_t a_bank) const
 	{
 		std::scoped_lock lk(_lock);
 		for (const auto& h : _hotkeys) {
-			if (h.bind == a_bind) {
+			if (InBank(h, a_bank) && h.bind == a_bind) {
 				return &h;
 			}
 		}
@@ -126,25 +152,23 @@ namespace HKS
 	const Hotkey* HotkeyManager::ResolveChord(
 		RE::INPUT_DEVICE                         a_device,
 		const std::unordered_set<std::uint32_t>& a_held,
-		std::uint32_t                            a_trigger) const
+		std::uint8_t                              a_bank,
+		std::uint32_t                             a_trigger) const
 	{
 		std::scoped_lock lk(_lock);
 
 		const Hotkey* best = nullptr;
 		for (const auto& h : _hotkeys) {
-			if (h.bind.device != a_device) {
+			if (!InBank(h, a_bank) || h.bind.device != a_device) {
 				continue;
 			}
-			// The just-pressed key must be part of the chord, so an unrelated held/phantom
-			// key can never shadow the bind the user actually triggered.
-			if (a_trigger != 0 &&
+			if (a_trigger != 0 && !h.bind.keys.empty() &&
 				std::find(h.bind.keys.begin(), h.bind.keys.end(), a_trigger) == h.bind.keys.end()) {
 				continue;
 			}
 			if (!h.bind.IsSatisfiedBy(a_held)) {
 				continue;
 			}
-			// Prefer the most specific (longest) satisfied chord.
 			if (!best || h.bind.keys.size() > best->bind.keys.size()) {
 				best = &h;
 			}
@@ -152,22 +176,22 @@ namespace HKS
 		return best;
 	}
 
-	Bind HotkeyManager::BindOfItem(const ItemId& a_id) const
+	Bind HotkeyManager::BindOfItem(const ItemId& a_id, std::uint8_t a_bank) const
 	{
 		std::scoped_lock lk(_lock);
 		for (const auto& h : _hotkeys) {
-			if (h.Has(a_id)) {
+			if (InBank(h, a_bank) && h.Has(a_id)) {
 				return h.bind;
 			}
 		}
 		return {};
 	}
 
-	Bind HotkeyManager::BindOfForm(RE::FormID a_form) const
+	Bind HotkeyManager::BindOfForm(RE::FormID a_form, std::uint8_t a_bank) const
 	{
 		std::scoped_lock lk(_lock);
 		for (const auto& h : _hotkeys) {
-			if (h.HasForm(a_form)) {
+			if (InBank(h, a_bank) && h.HasForm(a_form)) {
 				return h.bind;
 			}
 		}
@@ -177,10 +201,11 @@ namespace HKS
 	std::vector<ItemId> HotkeyManager::ResolveChordItems(
 		RE::INPUT_DEVICE                         a_device,
 		const std::unordered_set<std::uint32_t>& a_held,
-		std::uint32_t                            a_trigger) const
+		std::uint8_t                              a_bank,
+		std::uint32_t                             a_trigger) const
 	{
 		std::scoped_lock lk(_lock);
-		const auto*      hk = ResolveChord(a_device, a_held, a_trigger);
+		const auto* hk = ResolveChord(a_device, a_held, a_bank, a_trigger);
 		return hk ? hk->items : std::vector<ItemId>{};
 	}
 
@@ -190,9 +215,22 @@ namespace HKS
 		return _hotkeys;
 	}
 
+	std::vector<Hotkey> HotkeyManager::Snapshot(std::uint8_t a_bank) const
+	{
+		std::scoped_lock lk(_lock);
+		std::vector<Hotkey> result;
+		result.reserve(_hotkeys.size());
+		std::copy_if(_hotkeys.begin(), _hotkeys.end(), std::back_inserter(result),
+			[&](const Hotkey& h) { return InBank(h, a_bank); });
+		return result;
+	}
+
 	void HotkeyManager::ReplaceAll(std::vector<Hotkey> a_hotkeys)
 	{
 		std::scoped_lock lk(_lock);
+		std::erase_if(a_hotkeys, [](const Hotkey& h) {
+			return !h.bind.IsValid() || h.items.empty() || h.bank >= kBankCount;
+		});
 		_hotkeys = std::move(a_hotkeys);
 	}
 
@@ -202,3 +240,4 @@ namespace HKS
 		_hotkeys.clear();
 	}
 }
+

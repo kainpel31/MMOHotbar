@@ -1,6 +1,7 @@
 #include "FavoritesHook.h"
 
 #include "Favorites.h"
+#include "HotbarHUD.h"
 #include "HotkeyManager.h"
 #include "InputHandler.h"
 #include "MenuAssign.h"
@@ -89,7 +90,7 @@ namespace HKS
 				if (Settings::IconsEnabled(Settings::MenuKind::kFavorites) &&
 					entry.GetMember("formId", &fidVal) && fidVal.IsNumber()) {
 					const auto fid = static_cast<RE::FormID>(fidVal.GetNumber());
-					if (const auto* hk = mgr->FindByForm(fid)) {
+					if (const auto* hk = mgr->FindByForm(fid, MMO::HotbarHUD::ActiveBank())) {
 						for (const auto& member : hk->items) {
 							if (member.form == fid) {
 								hands = member.hands;

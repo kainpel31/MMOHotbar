@@ -2,6 +2,7 @@
 
 #include "BottomBarHint.h"
 #include "Favorites.h"
+#include "HotbarHUD.h"
 #include "Localization.h"
 #include "HotkeyManager.h"
 #include "Settings.h"
@@ -79,7 +80,7 @@ namespace HKS
 			a_k1 = 0;
 			a_k2 = 0;
 			a_hands = 0;
-			const auto* hk = HotkeyManager::GetSingleton()->FindByItem(a_id);
+			const auto* hk = HotkeyManager::GetSingleton()->FindByItem(a_id, MMO::HotbarHUD::ActiveBank());
 			if (!hk) {
 				return;
 			}

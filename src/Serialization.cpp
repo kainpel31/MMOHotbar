@@ -1,6 +1,7 @@
 #include "Serialization.h"
 
 #include "HotbarHUD.h"
+#include "HotbarHUDView.h"
 #include "HotkeyManager.h"
 
 namespace HKS::Serialization
@@ -22,8 +23,7 @@ namespace HKS::Serialization
 
 	void SaveCallback(SKSE::SerializationInterface* a_intfc)
 	{
-		auto* mgr = HotkeyManager::GetSingleton();
-		const auto& hotkeys = mgr->GetAll();
+		const auto hotkeys = HotkeyManager::GetSingleton()->Snapshot();
 
 		if (!a_intfc->OpenRecord(kRecordHotkeys, kVersion)) {
 			logger::error("failed to open HOTK record");
@@ -31,31 +31,29 @@ namespace HKS::Serialization
 		}
 
 		Write<std::uint32_t>(a_intfc, static_cast<std::uint32_t>(hotkeys.size()));
-
-		for (const auto& h : hotkeys) {
-			Write<std::uint32_t>(a_intfc, static_cast<std::uint32_t>(h.bind.device));
-			Write<std::uint32_t>(a_intfc, static_cast<std::uint32_t>(h.bind.keys.size()));
-			for (auto k : h.bind.keys) {
-				Write<std::uint32_t>(a_intfc, k);
+		for (const auto& hotkey : hotkeys) {
+			Write<std::uint32_t>(a_intfc, static_cast<std::uint32_t>(hotkey.bind.device));
+			Write<std::uint32_t>(a_intfc, static_cast<std::uint32_t>(hotkey.bind.keys.size()));
+			for (const auto key : hotkey.bind.keys) {
+				Write<std::uint32_t>(a_intfc, key);
 			}
-			Write<std::uint32_t>(a_intfc, static_cast<std::uint32_t>(h.items.size()));
-			for (const auto& id : h.items) {
+			Write<std::uint32_t>(a_intfc, static_cast<std::uint32_t>(hotkey.items.size()));
+			for (const auto& id : hotkey.items) {
 				Write<RE::FormID>(a_intfc, id.form);
 				Write<RE::FormID>(a_intfc, id.ench);
 				Write<std::uint16_t>(a_intfc, id.uid);
 				Write<std::int32_t>(a_intfc, id.health);
 				Write<std::uint8_t>(a_intfc, id.hands);
 			}
+			Write<std::uint8_t>(a_intfc, hotkey.bank);
 		}
 
 		if (!a_intfc->OpenRecord(kRecordPreset, kPresetVersion)) {
-		logger::error("failed to open PRST record");
-		return;
-	}
-	const auto presetPlane = MMO::HotbarHUD::ActivePreset();
-	Write<std::uint32_t>(a_intfc, presetPlane);
-
-	logger::info("saved {} hotkeys", hotkeys.size());
+			logger::error("failed to open PRST record");
+			return;
+		}
+		Write<std::uint32_t>(a_intfc, MMO::HotbarHUD::ActivePreset());
+		logger::info("saved {} hotkeys", hotkeys.size());
 	}
 
 	namespace
@@ -116,6 +114,7 @@ namespace HKS::Serialization
 	void LoadCallback(SKSE::SerializationInterface* a_intfc)
 	{
 		std::vector<Hotkey> loaded;
+		MMO::HotbarHUD::SetActivePreset(1);
 
 		std::uint32_t type;
 		std::uint32_t version;
@@ -127,25 +126,27 @@ namespace HKS::Serialization
 					logger::warn("PRST version {} is not readable (expected {}), ignoring", version, kPresetVersion);
 					continue;
 				}
-				std::uint32_t presetPlane = 1;
-				if (!Read(a_intfc, presetPlane)) {
-					logger::error("failed reading preset plane");
+				std::uint32_t activePreset = 1;
+				if (!Read(a_intfc, activePreset)) {
+					logger::error("failed reading active preset");
 					break;
 				}
-				MMO::HotbarHUD::SetActivePreset(presetPlane);
-				logger::info("loaded hotbar preset plane {}", MMO::HotbarHUD::ActivePreset());
+				MMO::HotbarHUD::SetActivePreset(activePreset);
+				logger::info("loaded hotbar preset {}", MMO::HotbarHUD::ActivePreset());
 				continue;
 			}
 			if (type != kRecordHotkeys) {
 				logger::warn("unknown co-save record {:08X}, skipping", type);
 				continue;
 			}
-			if (version != kVersion && version != kVersionNoHands && version != kVersionSingleItem) {
-				logger::warn("HOTK version {} is not readable (expected {}, {} or {}), ignoring",
-					version, kVersion, kVersionNoHands, kVersionSingleItem);
+			if (version != kVersion && version != kVersionNoBanks && version != kVersionNoHands &&
+				version != kVersionSingleItem) {
+				logger::warn("HOTK version {} is not readable (expected {}, {}, {} or {}), ignoring",
+					version, kVersion, kVersionNoBanks, kVersionNoHands, kVersionSingleItem);
 				continue;
 			}
-			const bool withHands = version >= kVersion;
+			const bool withHands = version >= kVersionNoBanks;
+			const bool withBank = version >= kVersion;
 
 			std::uint32_t count = 0;
 			if (!Read(a_intfc, count)) {
@@ -155,8 +156,9 @@ namespace HKS::Serialization
 
 			loaded.reserve(count);
 			for (std::uint32_t i = 0; i < count; ++i) {
-				Bind                bind;
-				std::vector<ItemId> saved;
+				Bind                       bind;
+				std::vector<ItemId>        saved;
+				std::uint8_t               bank = 0;
 
 				if (version == kVersionSingleItem) {
 					// v3 layout: device, one item, then the chord.
@@ -207,9 +209,16 @@ namespace HKS::Serialization
 						logger::error("truncated items on hotkey #{}", i);
 						break;
 					}
+					if (withBank && !Read(a_intfc, bank)) {
+						logger::error("truncated bank on hotkey #{}", i);
+						break;
+					}
 				}
 
-				if (!bind.IsValid()) {
+				if (!bind.IsValid() || bank >= kBankCount) {
+					if (bank >= kBankCount) {
+						logger::warn("invalid bank {} on hotkey #{}, dropping it", bank, i);
+					}
 					continue;
 				}
 
@@ -228,17 +237,19 @@ namespace HKS::Serialization
 					continue;
 				}
 
-				loaded.push_back(Hotkey{ std::move(bind), std::move(items) });
+				loaded.push_back(Hotkey{ std::move(bind), std::move(items), bank });
 			}
 		}
 
 		HotkeyManager::GetSingleton()->ReplaceAll(std::move(loaded));
-		logger::info("loaded {} hotkeys", HotkeyManager::GetSingleton()->GetAll().size());
+		MMO::HotbarHUDView::MarkDirty();  // the bar reads the same table
+		logger::info("loaded {} hotkeys", HotkeyManager::GetSingleton()->Snapshot().size());
 	}
 
 	void RevertCallback(SKSE::SerializationInterface*)
 	{
 		HotkeyManager::GetSingleton()->Clear();
+		MMO::HotbarHUD::SetActivePreset(1);
 	}
 
 	void Register()

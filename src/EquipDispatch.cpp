@@ -507,73 +507,6 @@ namespace HKS::EquipDispatch
 			       a_form->Is(RE::FormType::Scroll);
 		}
 
-		// --- RMB swap: move a hand item to the other hand (right -> left, left -> right) ---
-		//
-		// Two moves: take it out of the hand it is in now, then put it into the other.
-		// Order matters -- equipping while still worn could read as a toggle and put the
-		// item away instead of moving it. Forms with no second hand (shields, torches,
-		// two-handers) and anything not in exactly one hand right now report false; the
-		// press then falls back to the normal behaviour.
-		bool SwapHandsItem(RE::PlayerCharacter* a_player, RE::ActorEquipManager* a_em,
-			RE::TESBoundObject* a_bound, RE::TESForm* a_form, const ItemId& a_id)
-		{
-			constexpr RE::FormID kRight = 0x13F42;
-			constexpr RE::FormID kLeft = 0x13F43;
-
-			if (!SupportsHandMemory(a_form)) {
-				return false;
-			}
-			auto* proc = a_player->GetActorRuntimeData().currentProcess;
-			const bool inRight = proc && proc->GetEquippedRightHand() == a_form;
-			const bool inLeft = proc && proc->GetEquippedLeftHand() == a_form;
-			const RE::FormID to = inRight && !inLeft ? kLeft : inLeft && !inRight ? kRight : 0;
-			if (to == 0) {
-				return false;
-			}
-			UnequipItem(a_em, a_player, a_bound, FindInstanceList(a_bound, a_id));
-			// Re-resolve after the unequip: the list just taken off is the natural source
-			// for the other hand (it is no longer kWorn, so equipping from it is clean).
-			EquipItem(a_em, a_player, a_bound, FindInstanceList(a_bound, a_id), 1, EquipSlot(to));
-			return true;
-		}
-
-		// Same move for a spell. The engine has no exposed "unequip spell"; UnequipObject
-		// dispatches to it internally (spell + slot clears that hand only). If it ever
-		// fails to, the slot is cleared directly so a swap can never leave the spell
-		// dual-held. Voice and both-hands spells have no other hand and report false.
-		bool SwapHandsSpell(RE::PlayerCharacter* a_player, RE::ActorEquipManager* a_em,
-			RE::SpellItem* a_spell)
-		{
-			constexpr RE::FormID kRight = 0x13F42;
-			constexpr RE::FormID kLeft = 0x13F43;
-			constexpr RE::FormID kBoth = 0x13F45;
-
-			auto* spellSlot = a_spell->GetEquipSlot();
-			auto* bothSlot = EquipSlot(kBoth);
-			if (spellSlot && spellSlot == bothSlot) {
-				return false;
-			}
-			auto&    rt = a_player->GetActorRuntimeData();
-			const bool inRight = rt.selectedSpells[RE::Actor::SlotTypes::kRightHand] == a_spell;
-			const bool inLeft = rt.selectedSpells[RE::Actor::SlotTypes::kLeftHand] == a_spell;
-			if (inRight == inLeft) {
-				return false;
-			}
-			const RE::FormID from = inRight ? kRight : kLeft;
-			const RE::FormID to = inRight ? kLeft : kRight;
-			const auto       fromSlot = inRight ? RE::Actor::SlotTypes::kRightHand : RE::Actor::SlotTypes::kLeftHand;
-			a_em->UnequipObject(a_player, a_spell, nullptr, 1, EquipSlot(from),
-				false,  // queueEquip
-				true,   // forceEquip -- a hand-only clear must apply
-				true,   // playSounds
-				false); // applyNow
-			if (rt.selectedSpells[fromSlot] == a_spell) {
-				rt.selectedSpells[fromSlot] = nullptr;
-			}
-			a_em->EquipSpell(a_player, a_spell, EquipSlot(to));
-			return true;
-		}
-
 		void EquipForm(const ItemId& a_id)
 		{
 			auto* form = RE::TESForm::LookupByID(a_id.form);
@@ -850,33 +783,6 @@ namespace HKS::EquipDispatch
 				EquipGroupMember(player, em, id, hands);
 			}
 		}
-
-		// RMB press on a single-item bind: MOVE the hand item to the other hand instead
-		// of equipping it. Only a swap when the form is in exactly one hand and has an
-		// other hand to go to (1H weapons, staves, non-voice spells); anything else --
-		// shield, two-hander, empty hand -- falls back to the normal toggle, so an RMB
-		// press is never a dead one.
-		void SwapSingleForm(const ItemId& a_id)
-		{
-			auto* form = RE::TESForm::LookupByID(a_id.form);
-			auto* player = RE::PlayerCharacter::GetSingleton();
-			auto* em = RE::ActorEquipManager::GetSingleton();
-			if (!player || !em || !form) {
-				return;
-			}
-			bool moved = false;
-			if (auto* spell = form->As<RE::SpellItem>()) {
-				moved = SwapHandsSpell(player, em, spell);
-			} else {
-				auto* bound = form->As<RE::TESBoundObject>();
-				if (bound) {
-					moved = SwapHandsItem(player, em, bound, form, a_id);
-				}
-			}
-			if (!moved) {
-				EquipForm(a_id);
-			}
-		}
 	}
 
 	std::uint8_t CurrentHands(RE::TESForm* a_form)
@@ -929,7 +835,7 @@ namespace HKS::EquipDispatch
 		return false;
 	}
 
-	void Fire(std::vector<ItemId> a_items, FireMode a_mode)
+	void Fire(std::vector<ItemId> a_items)
 	{
 		if (a_items.empty()) {
 			return;
@@ -938,7 +844,7 @@ namespace HKS::EquipDispatch
 		if (!task) {
 			return;
 		}
-		task->AddTask([items = std::move(a_items), swap = a_mode == FireMode::kSwapHands]() {
+		task->AddTask([items = std::move(a_items)]() {
 			// Reconcile before equipping. An item the player un-favorited loses its place in
 			// the bind; one they merely ran out of keeps it (PickupWatch restores the star
 			// when it comes back), it is just skipped this press.
@@ -969,14 +875,8 @@ namespace HKS::EquipDispatch
 			}
 
 			// One item keeps the toggle; a group is a loadout and only ever equips.
-			// An RMB press moves a swappable single hand item to the other hand instead
-			// of toggling it.
 			if (live.size() == 1) {
-				if (swap) {
-					SwapSingleForm(live.front());
-				} else {
-					EquipForm(live.front());
-				}
+				EquipForm(live.front());
 			} else {
 				EquipSet(live);
 			}
