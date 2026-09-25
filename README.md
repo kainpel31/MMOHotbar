@@ -25,6 +25,11 @@ See upstream [README](https://github.com/STB-Team/STB-Hotkey-System) and
 
 - `src/HotbarHUD.{h,cpp}` — 12-slot view over the active preset bank
   (`BindOfSlot` / `SlotOfBind` / `Snapshot` / `ExecuteSlot` / `SlotLabel`).
+- `src/HotbarHUDView.{h,cpp}` — draws that view. Hooks `HUDMenu::AdvanceMovie`
+  (vfunc `0x5`), creates an empty MovieClip on the HUD movie's `_root` and
+  `loadMovie`s `Interface/MMOHotbar/Hotbar.swf` into it, then writes each slot's
+  key into the SWF's own `key<i>` text field. It hides while a menu owns the
+  screen, and re-attaches if the game rebuilds the HUD (save load / new game).
 - `src/HotbarConsole.{h,cpp}` — Papyrus API `MMOHotbar.FireSlot(1-12)`,
   `MMOHotbar.GetPreset()` and `MMOHotbar.DumpSlots()` so a HUD/SWF can fire slots
   by script. `MMOHotbar.FireSlotSwap` remains as a deprecated alias of `FireSlot`.
@@ -34,6 +39,18 @@ See upstream [README](https://github.com/STB-Team/STB-Hotkey-System) and
 - `dist/SKSE/Plugins/MMOHotbar.ini` — same keys as STB plus
   `[Hotbar] iPresetModifierScanCode = 45`.
 - DLL/plugin renamed to `MMOHotbar` v2.0.0.
+
+### The bar's movie, and what it does not draw yet
+
+`dist/Interface/MMOHotbar/Hotbar.swf` is our own build
+(`python tools/build_hud_swf.py`) and is tracked in git, so the installer always
+ships it. Per slot it defines `frame<i>` (the art), `key<i>` (a text field the
+plugin writes) and `icon<i>` (an empty clip). **The `icon<i>` clips stay empty:**
+CommonLibSSE-NG exposes no per-form icon index, so which frame of which icon sheet
+belongs to a given form cannot be derived here without guessing. The frames and
+key labels are correct; a slot shows its frame and the key bound to it, with no
+item picture. List rows are unaffected — those still get their keycaps, since that
+path goes through the menu's own entry objects rather than the HUD movie.
 
 ## Building
 
