@@ -27,10 +27,15 @@ namespace MMO
 		bool g_attached = false;
 		bool g_failed = false;
 
-		// The attached clip, kept so MarkDirty can flag a refresh. Held as a raw
-		// GFxValue: it is owned by the HUD movie's display list, so we only ever touch it
-		// from the HUD thread that is already advancing that movie.
+		// The attached clip. It is owned by the HUD movie's display list, so it is only
+		// ever touched from the HUD thread that is advancing that very movie.
 		RE::GFxValue g_clip;
+
+		// The movie g_clip belongs to. The game tears the HUD down and builds a new one
+		// on a save load / new game, which would leave g_clip pointing into a freed
+		// display list -- writing to it after that is a use-after-free, not a cosmetic
+		// bug. Comparing the live movie against this is what tells us to re-attach.
+		RE::GFxMovieView* g_attachedMovie = nullptr;
 
 		// The labels currently on screen, so we only write a slot whose key actually
 		// changed. SetText on twelve fields every frame is wasted work and makes the
@@ -38,6 +43,14 @@ namespace MMO
 		std::array<std::string, HotbarHUD::kSlotCount> g_labels{};
 		bool g_labelsValid = false;
 		bool g_dirty = true;
+
+		void Detach()
+		{
+			g_attached = false;
+			g_attachedMovie = nullptr;
+			g_labelsValid = false;
+			g_clip = RE::GFxValue{};
+		}
 	} // namespace
 
 	void HotbarHUDView::Install()
@@ -66,6 +79,16 @@ namespace MMO
 		if (g_failed) {
 			return;
 		}
+
+		// A different movie than the one we attached to means the game rebuilt the HUD
+		// (save load / new game) and our clip went with the old one. Drop it before
+		// touching anything, then attach again on this movie.
+		auto* movie = a_this->uiMovie.get();
+		if (g_attached && movie != g_attachedMovie) {
+			logger::info("hotbar HUD: movie was rebuilt, re-attaching");
+			Detach();
+		}
+
 		if (!g_attached && !Attach(a_this)) {
 			return;
 		}
@@ -126,6 +149,7 @@ namespace MMO
 		clip.SetMember("_y", RE::GFxValue{ -kBottomMargin });
 
 		g_clip = clip;
+		g_attachedMovie = movie;
 		g_labelsValid = false;
 		g_dirty = true;
 		g_attached = true;
