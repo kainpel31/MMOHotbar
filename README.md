@@ -37,9 +37,12 @@ See upstream [README](https://github.com/STB-Team/STB-Hotkey-System) and
 - `src/HotbarConsole.{h,cpp}` — Papyrus API `MMOHotbar.FireSlot(1-12)`,
   `MMOHotbar.GetPreset()` and `MMOHotbar.DumpSlots()` so a HUD/SWF can fire slots
   by script. `MMOHotbar.FireSlotSwap` remains as a deprecated alias of `FireSlot`.
-- Preset toggle: tapping `X` alone flips preset 1 ↔ 2 (persisted in the co-save
-  `PRST` record). `X` is reserved: it never forms a binding, and assignment,
-  keycaps, firing, and plugin lookups always follow the visible bank.
+- Preset toggle: tapping that key alone flips preset 1 ↔ 2 (persisted in the co-save
+  `PRST` record). It is reserved: it never forms a binding, and assignment,
+  keycaps, firing, and plugin lookups always follow the visible bank. Any keyboard
+  scancode works — `0` turns it off — and the plugin logs the resolved key **by name** at
+  start-up, plus a warning if it collides with your assign or group modifier (a collision
+  disables the toggle, never the modifier).
 - `dist/SKSE/Plugins/MMOHotbar.ini` — same keys as STB plus
   `[Hotbar] iPresetModifierScanCode = 45`.
 - DLL/plugin renamed to `MMOHotbar` v2.0.0.

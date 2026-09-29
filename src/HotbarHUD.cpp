@@ -5,6 +5,7 @@
 #include "EquipDispatch.h"
 #include "HotkeyManager.h"
 #include "KeyConflict.h"
+#include "Settings.h"
 
 #include <SimpleIni.hpp>
 
@@ -155,6 +156,34 @@ namespace MMO
 		_presetModifier = static_cast<std::uint32_t>(
 			ini.GetLongValue("Hotbar", "iPresetModifierScanCode", static_cast<long>(_presetModifier)));
 
+		// The toggle is a bare scancode with no way to say "I meant another key", so a typo
+		// is a silent no-op -- the bar just stops flipping and nothing says why. Log what it
+		// resolved to BY NAME (45 = "X" is not something anyone guesses) and say plainly
+		// when it is off, which 0 does and which the INI comments now document too.
+		if (_presetModifier == 0) {
+			logger::warn("MMO hotbar: preset toggle disabled (iPresetModifierScanCode = 0)");
+		}
+		else {
+			logger::info("MMO hotbar: preset toggle = {} (scancode {})",
+			             HKS::KeyConflict::KeyName(_presetModifier), _presetModifier);
+
+			// InputHandler declines to treat the key as a toggle while it is also a bind
+			// modifier (the assign key has to stay usable for capture), so a collision does
+			// not break assignment -- it silently kills the toggle instead. Warn, do not
+			// override: the player may have deliberately pointed it at a modifier they no
+			// longer hold, and picking a different key for them is not our call.
+			if (const auto assign = Settings::AssignModifier(); assign == _presetModifier) {
+				logger::warn("MMO hotbar: preset toggle {} is also the ASSIGN modifier, so it "
+				             "will not flip banks -- change one of the two",
+				             HKS::KeyConflict::KeyName(_presetModifier));
+			}
+			if (const auto group = Settings::GroupModifier(); group == _presetModifier) {
+				logger::warn("MMO hotbar: preset toggle {} is also the GROUP modifier, so it "
+				             "will not flip banks -- change one of the two",
+				             HKS::KeyConflict::KeyName(_presetModifier));
+			}
+		}
+
 		// Layout, same file and same section. Clamped here rather than trusted: these are
 		// read once per session, and an odd value would otherwise become a bar that is not
 		// on screen, or a slot count nothing can fire.
@@ -173,9 +202,9 @@ namespace MMO
 		_barOffsetY = std::clamp(static_cast<float>(ini.GetDoubleValue("Hotbar", "fBarY", _barOffsetY)),
 		                         0.0f, static_cast<float>(kSlotCount * 64));
 
-		logger::info("MMO hotbar: {} of {} slots, {} preset banks, toggle 0x{:X}, "
-		             "layout x {:+.0f} y {:.0f} scale {:.0f}%",
-		             _visibleSlots, kSlotCount, kBankCount, _presetModifier,
+		// The toggle is reported above, by name, so it is not repeated here.
+		logger::info("MMO hotbar: {} of {} slots, {} preset banks, layout x {:+.0f} y {:.0f} scale {:.0f}%",
+		             _visibleSlots, kSlotCount, kBankCount,
 		             static_cast<double>(_barOffsetX), static_cast<double>(_barOffsetY),
 		             static_cast<double>(_barScalePercent));
 	}
