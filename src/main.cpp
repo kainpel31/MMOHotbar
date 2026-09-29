@@ -9,7 +9,6 @@
 
 using namespace RE;
 #include <SimpleIni.hpp>
-#include <xbyak/xbyak.h>
 
 #include "EquipDispatch.h"
 #include "FavoritesHook.h"

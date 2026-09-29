@@ -144,9 +144,9 @@ FFDec absent it prints a warning and skips the check — the build still succeed
 
 ## Building
 
-Deps come from `vcpkg.json` (spdlog, nlohmann_json, xbyak, simpleini, boost, …), triplet
-`x64-windows-static`, and CMake needs `VCPKG_ROOT` set. CommonLibSSE-NG is **not** a vcpkg
-dependency — it is a checkout, see below.
+Deps come from `vcpkg.json` (spdlog, nlohmann_json, simpleini, boost, directxtk, rapidcsv, …),
+triplet `x64-windows-static`, and CMake needs `VCPKG_ROOT` set. CommonLibSSE-NG is **not** a
+vcpkg dependency — it is a checkout, see below.
 
 ### In the cloud — no Visual Studio on your PC
 

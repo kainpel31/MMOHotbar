@@ -10,11 +10,11 @@
     "nlohmann-json",
     "magic-enum",
     "catch2",
+    "rapidcsv",
     "rsm-binary-io",
     "simpleini",
     "span-lite",
-    "spdlog",
-    "xbyak"
+    "spdlog"
   ],
   "builtin-baseline": "ffffe619563988cbcfda2b8db2c142654d12eaf5"
 }

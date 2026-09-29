@@ -112,6 +112,12 @@ set(Boost_USE_STATIC_LIBS ON)
 #      "Asset dont push to git" where the archive is kept.
 # Set STB_USE_VCPKG_COMMONLIB=ON to force the vcpkg port instead; it is no longer
 # installed by vcpkg.json, so that route expects you to have installed it yourself.
+#
+# Building it from source means OUR vcpkg manifest has to carry what the library needs:
+# its own manifest is not read by add_subdirectory. spdlog and directxtk come from its
+# find_package calls, but rapidcsv is only a find_path -- and a NOTFOUND variable that
+# the library then feeds to target_include_directories is a fatal generate error, not a
+# warning. It is in vcpkg.json because of exactly that.
 option(STB_USE_VCPKG_COMMONLIB "Use a self-installed vcpkg commonlibsse-ng port instead of a CommonLibSSE-NG checkout" OFF)
 set_from_environment(CommonLibSSEPath_NG)
 if (NOT STB_USE_VCPKG_COMMONLIB AND NOT DEFINED CommonLibSSEPath_NG AND
@@ -140,7 +146,6 @@ endif ()
 
 find_package(spdlog REQUIRED CONFIG)
 find_package(nlohmann_json REQUIRED CONFIG)
-find_package(xbyak REQUIRED CONFIG)
 
 # ---- Add source files ----
 
@@ -205,7 +210,6 @@ target_link_libraries(
 		CommonLibSSE::CommonLibSSE
 		nlohmann_json::nlohmann_json
 		spdlog::spdlog
-		xbyak::xbyak
 )
 
 

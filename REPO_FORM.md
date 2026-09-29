@@ -158,8 +158,8 @@ Versioned: a future `IVersion2` is a separate class; asking for `1` keeps workin
 | **to rebuild the SWF** | Python 3.9+ and Pillow; FFDec's `ffdec-cli.exe` optional (verification only) |
 | **to build in the cloud** | nothing — GitHub Actions does it |
 
-Build deps: spdlog, nlohmann_json, xbyak, simpleini, boost — plus a **checkout** of
-CommonLibSSE-NG ([`alandtse/CommonLibSSE-NG`](https://github.com/alandtse/CommonLibSSE-NG)),
+Build deps: spdlog, nlohmann_json, simpleini, boost, directxtk, rapidcsv — plus a
+**checkout** of CommonLibSSE-NG ([`alandtse/CommonLibSSE-NG`](https://github.com/alandtse/CommonLibSSE-NG)),
 which is deliberately not a vcpkg dependency.
 
 ---
