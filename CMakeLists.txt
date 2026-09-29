@@ -127,11 +127,10 @@ endif ()
 if (NOT STB_USE_VCPKG_COMMONLIB AND DEFINED CommonLibSSEPath_NG AND EXISTS "${CommonLibSSEPath_NG}")
 	message(STATUS "CommonLibSSE-NG from: ${CommonLibSSEPath_NG}")
 	set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
-	# The library publishes a prebuilt CommonLibSSE.lib for its release tags: SHA256-checked,
-	# accepted only when the bundle toolset matches the consumer cl.exe, falling back to a
-	# source build otherwise. Left ON because compiling it is ~400 translation units and dominates
-	# the run, and the pin is that same release commit. -DCOMMONLIB_PREBUILT=OFF compiles it instead.
-	set(COMMONLIB_PREBUILT ON CACHE BOOL "" FORCE)
+	# Compiled from source. The library also publishes a prebuilt CommonLibSSE.lib for its
+	# release tags, but on this runner it did not resolve and every run paid the
+	# ~400-translation-unit compile anyway, so there was nothing to gain.
+	set(COMMONLIB_PREBUILT OFF CACHE BOOL "" FORCE)
 	# Skyrim VR off, and this one is not optional: the library takes ENABLE_SKYRIM_VR ON by
 	# default and BSVRInterface.h does #include "openvr.h" inside that guard, while the
 	# headers come from extern/openvr -- a folder that is present in the checkout but EMPTY

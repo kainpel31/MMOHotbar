@@ -238,11 +238,14 @@ namespace HKS::EquipDispatch
 				}
 				return;
 			}
-			RE::BSString text;
-			a_book->GetDescription(text, nullptr);
+
+			// OpenMenuFromBaseForm, not OpenBookMenu: this library declares OpenBookMenu but
+			// never defines it, so calling it is an unresolved external at link time. The
+			// implemented overload takes everything except the description text, which the
+			// menu reads off the book itself.
 			RE::NiMatrix3 rot{};
 			rot.SetEulerAnglesXYZ(-0.05f, -0.05f, 1.50f);
-			RE::BookMenu::OpenBookMenu(text, a_xl, nullptr, a_book, RE::NiPoint3{}, rot, 1.0f, true);
+			RE::BookMenu::OpenMenuFromBaseForm(a_book, a_xl, RE::NiPoint3{}, rot, 1.0f, true);
 		}
 
 		void EquipSpellForm(RE::PlayerCharacter* a_player, RE::ActorEquipManager* a_em,
