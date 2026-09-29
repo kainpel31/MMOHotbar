@@ -111,8 +111,8 @@ namespace MMO
 			return false;
 		}
 
-		// A fresh empty clip at the top of the display list, exactly as HUDExtension
-		// does it: getNextHighestDepth() keeps us above whatever the HUD has added.
+		// A fresh empty clip at the top of the display list, the standard Scaleform
+		// sequence: getNextHighestDepth() keeps us above whatever the HUD has added.
 		RE::GFxValue depth;
 		if (!root.Invoke("getNextHighestDepth", &depth) || !depth.IsNumber()) {
 			g_failed = true;

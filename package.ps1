@@ -58,25 +58,17 @@ Copy-Item -LiteralPath $hud -Destination (Join-Path $core 'Interface') -Recurse
 # Scripts/ is inert anyway -- only a compiled .pex runs. It is tracked in the repository as
 # the reference for script authors; anyone who wants the wrapper compiles it themselves.
 
-# --- one keycap set, chosen in the installer -------------------------------------------
-foreach ($set in 'SkyUI', 'Untarnished') {
-    $swf = Join-Path $root "flash/$set/STB_Keycaps.swf"
-    if (-not (Test-Path -LiteralPath $swf)) {
-        Write-Warning "flash/$set/STB_Keycaps.swf is missing -- the '$set' option will install nothing. See flash/$set/README.md."
-        continue
-    }
-    $dest = Join-Path $stage "keycaps/$set/Interface"
-    New-Item -ItemType Directory -Path $dest -Force | Out-Null
-    Copy-Item -LiteralPath $swf -Destination $dest
-    # The art is not ours: its credit note travels with it. Its own file, not buried in
-    # Interface/ -- that is the layout upstream's keycaps download uses as well.
-    $credits = Join-Path $root "flash/$set/credits.txt"
-    if (Test-Path -LiteralPath $credits) {
-        Copy-Item -LiteralPath $credits -Destination (Join-Path $stage "keycaps/$set/Keycap art credits.txt")
-    } else {
-        Write-Warning "flash/$set/credits.txt is missing -- the art would ship uncredited. See flash/README.md."
-    }
-}
+# --- keycap SWF: deliberately not staged -----------------------------------------------
+#
+# flash/<set>/STB_Keycaps.swf is SkyUI's / Untarnished UI's own art. Those mods permit
+# MODIFYING their assets, not redistributing them, so nothing here copies one into the
+# installer and the files are not tracked in git either. The plugin does not need one: with
+# no Interface/STB_Keycaps.swf present the keycap import finds no movie, returns early, and
+# the hotkeys work with list rows simply showing no key glyph.
+#
+# If you want the glyphs, build a set from a UI mod you have installed and drop the result
+# in Data/Interface/STB_Keycaps.swf. flash/README.md has the recipe, and the export contract
+# is one clip named STBKeycap.
 
 Copy-Item -Path (Join-Path $root 'fomod') -Destination $stage -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $stage

@@ -42,15 +42,81 @@ See upstream [README](https://github.com/STB-Team/STB-Hotkey-System) and
 
 ### The bar's movie, and what it does not draw yet
 
-`dist/Interface/MMOHotbar/Hotbar.swf` is our own build
-(`python tools/build_hud_swf.py`) and is tracked in git, so the installer always
-ships it. Per slot it defines `frame<i>` (the art), `key<i>` (a text field the
-plugin writes) and `icon<i>` (an empty clip). **The `icon<i>` clips stay empty:**
-CommonLibSSE-NG exposes no per-form icon index, so which frame of which icon sheet
-belongs to a given form cannot be derived here without guessing. The frames and
-key labels are correct; a slot shows its frame and the key bound to it, with no
-item picture. List rows are unaffected — those still get their keycaps, since that
-path goes through the menu's own entry objects rather than the HUD movie.
+`dist/Interface/MMOHotbar/Hotbar.swf` is our own build (`python tools/build_hud_swf.py`,
+see [Tools](#tools)) and is tracked in git, so the installer always ships it. Per slot it
+defines `frame<i>` (the art), `key<i>` (a text field the plugin writes) and `icon<i>` (an
+empty clip). **The `icon<i>` clips stay empty:** CommonLibSSE-NG exposes no per-form icon
+index, so which frame of which icon sheet belongs to a given form cannot be derived here
+without guessing. The frames and key labels are correct; a slot shows its frame and the key
+bound to it, with no item picture.
+
+## Tools
+
+Two Python files build the hotbar's SWF. Nothing in the C++ build touches them — CI compiles
+the plugin from `src/` and ships the committed `Hotbar.swf` — so you only need Python if you
+are changing the bar's artwork or geometry.
+
+**Requirements:** Python 3.9+, and [Pillow](https://python-pillow.org/) (`pip install pillow`).
+[FFDec](https://github.com/jindrapetrik/jpexs-decompiler)'s `ffdec-cli.exe` is optional and
+only used to verify the output; the script looks for it on `PATH`, then in
+`%LOCALAPPDATA%\FFDec\`, then in `D:\FlashDecompire\`.
+
+### `tools/swflib.py` — a minimal SWF writer
+
+Not a general library: just the ~20 tags this project's movies need, written straight to
+bytes with `struct` and `zlib`. It exists because the bar's SWF is built with **no
+ActionScript at all** — the plugin drives it by addressing named display objects — so there
+is no need for a full authoring toolchain or a Flash compiler.
+
+| function | writes |
+|---|---|
+| `BitW` | MSB-first bit writer (`bit` / `bits` / `sbits` / `align`); the SWF format packs several fields into shared bitstreams, shape records especially |
+| `tag_bytes(code, body)` | tag header — `u16 (code<<6 | len)`, or the long form `\| 0x3F` + `u32` when the body is ≥ 63 bytes |
+| `rect`, `matrix`, `header` | the `RECT` / `MATRIX` / file-header primitives |
+| `file_attributes`, `set_background` | tag 69, tag 9 |
+| `define_bits_lossless2` | tag 98, a zlib-compressed ARGB bitmap (format 5) |
+| `define_shape2` | tag 32, one fill of one bitmap, as a single continuous bitstream |
+| `place_object2` | tag 26, places a character at a depth, optionally **naming** it — this is how `frame0`, `icon0`, `key0` get their names |
+| `define_edit_text` | tag 37, a read-only dynamic text field. Deliberately carries **no font** (`HasFont`/`HasFontClass` clear), so the movie needs no `DefineFont2` and embeds no font |
+| `define_sprite`, `define_empty_sprite`, `show_frame`, `end_tag` | tag 39 and friends |
+| `export_assets` | tag 56, the export table |
+| `save(path, w, h, tags, …)` | assembles header + tags, back-patches the real file length, writes it |
+
+Two format details that are easy to get wrong and are commented in the source: the
+`StyleChangeRecord` flag order in a shape is `NewStyles, LineStyle, FillStyle1, FillStyle0,
+MoveTo` with the `MoveTo` data first, and an edge's `NumBits` field is `bits - 2`.
+
+### `tools/build_hud_swf.py` — builds `dist/Interface/MMOHotbar/Hotbar.swf`
+
+```bash
+python tools/build_hud_swf.py                       # default frame art and output path
+python tools/build_hud_swf.py --frame my_slot.png  # your own 64x64 slot art
+python tools/build_hud_swf.py --out /tmp/Hotbar.swf
+```
+
+It flattens `--frame` to one 64×64 cell, embeds it once, and lays out 12 slots of three
+named objects each. The geometry is a set of named constants at the top of the file
+(`SLOTS`, `SLOT_PX`, `ICON_INSET`, `KEY_TOP`, `KEY_HEIGHT`, `TWIPS`), and Flash's unit is
+1 px = 20 twips.
+
+The output is character-id-addressed, which is the contract the C++ relies on:
+
+| ids | tag | what it is |
+|---|---|---|
+| 1 | `DefineBitsLossless2` | the slot art, embedded once and shared |
+| 2 | `DefineShape2` | paints that bitmap into a cell |
+| 10…21 | `DefineSprite` | the 12 empty `icon<i>` clips |
+| 30…41 | `DefineEditText` | the 12 `key<i>` labels, pre-filled with `1`…`12` |
+
+`frame<i>`, `icon<i>` and `key<i>` are then placed on the main timeline with `PlaceObject2`
+at depths `10 + 3i`, `11 + 3i`, `12 + 3i`, bottom layer first. **`kBarWidth`/`kBarHeight` in
+[`src/HotbarHUDView.cpp`](src/HotbarHUDView.cpp) must stay in step with `SLOT_PX` and
+`SLOTS`** — the C++ positions the clip from those numbers.
+
+After writing, `verify()` round-trips the file through `ffdec -swf2xml` and asserts the tag
+counts (1 bitmap, 1 shape, 12 sprites, 12 texts) and that every `frame<i>`/`icon<i>`/`key<i>`
+name is present. It exits non-zero on a mismatch, so it works as a pre-commit check. With
+FFDec absent it prints a warning and skips the check — the build still succeeds.
 
 ## Building
 
@@ -151,61 +217,55 @@ upstream attribution header. Upstream by **STB**; SWF machinery adapted from
 Dynamic Inventory Icon Injector by **JerryYOJ** (GPL-3.0, permission granted
 upstream); inspiration **Vermunds** (Extended Hotkey System).
 
-### The keycaps are someone else's art, under someone else's terms
 
-`Interface/STB_Keycaps.swf` is the one file here we did not make, and it is **not
-covered by our GPL-3.0**. It is cut out of **Untarnished UI**'s
-`interface/favoritesmenu.swf` — credit **Vor / Vorganger** and **uranreactor** —
-and most of those keycap shapes trace, shape for shape, back to **SkyUI**'s
-`ButtonArt`, so the **SkyUI Team** is credited for them too. Untarnished's
-permissions allow **modifying and redistributing** the asset **as long as the
-authors are credited**, and forbid selling it or shipping it in a paid mod. That
-permission is the *only* reason the art may be bundled at all — the GPL covers the
-DLL, never the picture on the key.
+### No third-party art is tracked or shipped
 
-So the credit has to travel with the file, which is what
-`flash/<set>/credits.txt` is for: `package.ps1` copies it into the installer next
-to the SWF as `Keycap art credits.txt`. Do not delete it, and keep the credit line
-in your mod page description.
+The repository contains exactly **one** `.swf`: `dist/Interface/MMOHotbar/Hotbar.swf`. It is
+generated by [`tools/build_hud_swf.py`](tools/build_hud_swf.py) from our own slot art and
+embeds no third-party bitmap, font or SWF.
 
-Both sets are committed here, and they are **not** interchangeable files — same
-export contract, different art:
+The keycap sets are the opposite case, and they are **not** in this repository and **not** in
+the installer. `flash/SkyUI/STB_Keycaps.swf` and `flash/Untarnished/STB_Keycaps.swf` are
+derivative works of SkyUI's `buttonart.swf` (character **153**) and Untarnished UI's
+`favoritesmenu.swf` (character **157**). Those mods grant permission to *modify* their assets
+— Untarnished also to redistribute, with credit — but neither grants a blanket right for us
+to republish the result, and the art inherits terms from however many reskins it has passed
+through. Rather than rely on a permission chain we would have to re-verify for every derived
+set, the files stay off git and out of `package.ps1`, and the installer no longer offers a
+keycap choice it cannot honour.
 
-| set | file | source | size |
+Nothing is lost functionally. The plugin never draws a keycap itself: it attaches one clip
+from whatever `Data/Interface/STB_Keycaps.swf` is present and jumps it to a frame. With no
+such file the import finds no movie, returns early, and the hotkeys work exactly as before —
+the only difference is that list rows show no key glyph. The hotbar's own HUD movie is
+independent of all this and is always installed.
+
+If you want the glyphs, build a set from a UI mod you already have and install it yourself;
+[`flash/README.md`](flash/README.md) has the full recipe plus the export contract (one clip
+named `STBKeycap`, keyboard at the DX scancode, mouse at `256 +` button, gamepad at
+`266 +` button). Building from art on your own disk is unambiguously fine; publishing the
+result is what needs permission, so a built set belongs on your disk only.
+
+## References
+
+Open-source Skyrim SE mods that solve overlapping problems. **The licence column matters** —
+several of the most useful ones ship no licence at all, which means *no permission to reuse
+their code*, only to read it. Licence state below was checked against each repository's
+`license` field and root file listing; star counts drift and are approximate.
+
+| project | lang | licence | what it is worth here |
 |---|---|---|---|
-| SkyUI (the default) | `flash/SkyUI/STB_Keycaps.swf` | `interface/skyui/buttonart.swf`, character **153** (keeps its `ButtonArt` export, gains `STBKeycap`) | 18 KB |
-| Untarnished UI | `flash/Untarnished/STB_Keycaps.swf` | `interface/favoritesmenu.swf`, character **157** cut out of the menu | 37 KB |
+| [STB-Team/STB-Hotkey-System](https://github.com/STB-Team/STB-Hotkey-System) | C++ | GPL-3.0 | the upstream this is a fork of; our chord model, assign flow and plugin API come from it |
+| [ahzaab/moreHUDSE](https://github.com/ahzaab/moreHUDSE) | C++ | **GPL-3.0** | the closest licensed precedent for `HotbarHUDView`: it loads its own `.swf` into the HUD Menu when the menu loads, and ships the SWF as build output — the same split of "our art, tracked" we use |
+| [ceejbot/soulsy](https://github.com/ceejbot/soulsy) | Rust | **GPL-3.0** | "a minimal Souls-like HUD", SKSE plugin. Worth reading for how it decides when a HUD element is shown and how little it costs per frame — the same problem our per-frame diffing solves |
+| [skyrim-multiplayer/skymp](https://github.com/skyrim-multiplayer/skymp) | C++ | none declared | the only real MMO hotbar in Skyrim, and the closest thing to this mod's goal. Read-only: there is no `LICENSE` file on `main`, so nothing here may be taken from it |
+| [pWn3d1337/Skyrim_SpellHotbar2](https://github.com/pWn3d1337/Skyrim_SpellHotbar2) | C++ | none declared | a spell hotbar rebuilt as a pure SKSE plugin, WIP. Read-only, same reason |
+| [pWn3d1337/Skyrim_SpellHotbar](https://github.com/pWn3d1337/Skyrim_SpellHotbar) | C++ | none declared | the earlier version; its `python_scripts/` and `SWF_Generator/` are the prior art for generating hotbar SWF assets from Python |
+| [expired6978/SKSE64Plugins](https://github.com/expired6978/SKSE64Plugins) (`hudextension`) | C++ | none declared | the popular `createEmptyMovieClip` + `loadMovie`-into-`_root` approach, done with hand-patched SE offsets. Ours is the same four documented Scaleform calls, resolved through CommonLibSSE-NG relocations instead. Read-only |
+| [schlangster/skyui](https://github.com/schlangster/skyui) | ActionScript | none declared | the menu/keycap contracts we document in `flash/README.md` — the `ButtonArt` frame layout and `icons.item.source` come from here. Read-only |
 
-You can tell them apart by shape count (152 vs 147) or by the number keys: the
-Untarnished set defines characters 560–569 for `1`…`0`, the SkyUI set defines
-characters 4, 6, 8…22 for the `!` `@` `#` symbols it draws above the digits. Picking
-the wrong one is not fatal — mismatched art just looks off — but the FOMOD asks
-which UI you run for a reason.
-
-### What "build it locally from the UI mod you have installed" means
-
-Nothing in the C++ build touches the SWF: the plugin never draws a keycap, it only
-attaches one clip from whatever `Interface/STB_Keycaps.swf` is installed and jumps
-it to a frame. The mod runs with no SWF at all — you just get no key glyphs.
-
-Upstream commits **no** `.swf` and asks you to produce it from a UI mod you already
-have, because *building* the file from art on your own disk is unambiguously fine,
-whereas *redistributing* it needs the author's permission. This fork commits both
-sets because those permissions are granted (with credit, which we ship). The
-upshot for you: **there is no build step to run.** `flash/` is documentation plus
-the two finished files.
-
-- **Untarnished UI** — done, `flash/Untarnished/STB_Keycaps.swf`. Upstream also
-  publishes the identical file as the optional **"STB Hotkey System - Untarnished UI
-  keycaps"** download on its Nexus page; either copy gives the same 37 KB SWF. Only
-  re-run [`flash/Untarnished/build.py`](flash/Untarnished/build.py) if a future
-  Untarnished release moves the clip to another character id.
-- **SkyUI** — done, `flash/SkyUI/STB_Keycaps.swf` (the set STB ships as its default,
-  taken from the installed mod). Rebuilding it from your own `SkyUI_SE.bsa` is only
-  needed for a different SkyUI-derived UI: the two edits are an export alias and
-  blanking/re-centring the `@2` `$4` key faces, exact character ids in
-  [`flash/SkyUI/README.md`](flash/SkyUI/README.md).
-- **Any other overhaul** — find the clip, confirm the `Mouse@256` / `Gamepad@266`
-  frame layout, add the `STBKeycap` export; the full recipe with a copy-paste
-  Python snippet is in [`flash/README.md`](flash/README.md).
-
+Three of these are GPL-3.0, the same as this project; the other five declare no licence at
+all, which for a repository means all rights reserved by default. The practical rule we
+follow: take *ideas* and *format contracts* from any of them, copy no code from the
+unlicensed ones, and re-derive anything we keep on the relocation-based API this
+project is built on.

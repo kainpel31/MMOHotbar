@@ -25,10 +25,13 @@ namespace MMO
 	//     key<i>    DefineEditText the keycap label, which we write with SetText
 	// Nothing in it belongs to another mod; no SkyUI (or other) art is embedded.
 	//
-	// Loading follows the pattern HUDExtension uses: create an empty MovieClip on the
-	// HUD movie's _root at the next free depth, then loadMovie() into it. That keeps us
-	// on CommonLibSSE-NG's relocation-resolved API (HUDMenu, GFxValue, BSScaleformManager)
-	// instead of a hand-patched offset, so it holds on SE and on every AE.
+	// Loading is the standard Scaleform dance every HUD mod uses: create an empty
+	// MovieClip on the HUD movie's _root at the next free depth, then loadMovie() into
+	// it. Those are four calls into documented GFxValue methods, not copied code -- the
+	// same sequence appears independently in ahzaab/moreHUDSE (GPL-3.0) and in the
+	// unlicensed HUDExtension. What is ours is doing it through CommonLibSSE-NG's
+	// relocation-resolved API (HUDMenu, GFxValue, BSScaleformManager) instead of a
+	// hand-patched SE offset, which is what holds on SE and on every AE.
 	//
 	// Attached from HUDMenu::AdvanceMovie rather than PostCreate on purpose: the HUD menu
 	// is built during game start-up, which can be BEFORE the plugin reaches kDataLoaded.

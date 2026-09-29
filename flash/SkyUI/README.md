@@ -1,20 +1,23 @@
-# SkyUI — the default set
+# SkyUI — the usual set
 
-Worked example of the recipe in [`../README.md`](../README.md). This is what ships by
-default, because SkyUI is the one UI practically everyone already has.
+Worked example of the recipe in [`../README.md`](../README.md). Build from this if you run
+SkyUI or any of its many reskins (Dear Diary, Untarnished's keycap art, …) — it is the case
+most people hit.
+
+**The built `STB_Keycaps.swf` is not committed here and not shipped in the installer** — the
+art is SkyUI's, and SkyUI's terms permit modifying it (with credit) but not redistributing it.
+Build it locally and install it to `Data/Interface/STB_Keycaps.swf`.
 
 **Source:** `interface/skyui/buttonart.swf` from `SkyUI_SE.bsa` — character **153**,
 exported as `ButtonArt`, 323 frames, `Keyboard@1` `Mouse@256` `Gamepad@266`. 19 KB and
 nothing but the button art, so no stripping is needed: only two edits.
 
-**Result:** [`STB_Keycaps.swf`](STB_Keycaps.swf) — 18 KB, 152 shapes, 323 frames, with both
-`ButtonArt` and `STBKeycap` exports on character 153 and the number row already flattened:
-the symbol shapes 4, 6, 8 … 22 are degenerate 1×1 paths (~25 bytes each) while the digits
-5, 7, 9 … 23 still carry their outlines (35–167 bytes) — that is what "blanked" and
-"re-centred" reduce to in the file. It is committed here, so these steps only need running
-again if you are adapting the set to another SkyUI-derived UI (Dear Diary and friends) —
-then follow the recipe below against that UI's own `buttonart*.swf`. Keep
-[`credits.txt`](credits.txt) next to the file.
+**Result:** 18 KB, 152 shapes, 323 frames, with both `ButtonArt` and `STBKeycap` exports on
+character 153 and the number row already flattened: the symbol shapes 4, 6, 8 … 22 are
+degenerate 1×1 paths (~25 bytes each) while the digits 5, 7, 9 … 23 still carry their
+outlines (35–167 bytes) — that is what "blanked" and "re-centred" reduce to in the file. Run
+the steps below once; for another SkyUI-derived UI, run them again against that UI's own
+`buttonart*.swf`.
 
 ## 1. Export alias
 

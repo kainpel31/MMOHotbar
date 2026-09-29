@@ -1,0 +1,25 @@
+# Extra lookup keys for icons whose filename cannot spell the game's EditorID.
+#
+# The item -> icon match in src/HotbarIconTable.h is made on the EditorID, because
+# the display name is localized and matching on it would break outside English. So
+# a filename only finds its icon when normalizing it lands on the same key as the
+# form's EditorID:
+#
+#     "Iron Sword.png"  -> ironsword  ==  EditorID "IronSword"   (matches, no alias)
+#     "Wine 2.png"      -> wine2
+#
+# A file whose name cannot reproduce its EditorID needs one line here:
+#
+#     wine02 = Wine 2
+#
+# left side  the EditorID, normalized the same way (lowercase, alphanumerics only)
+# right side the filename stem of an icon that already exists in the sheet
+#
+# A line naming an icon that is not in the sheet is a hard error at build time, so a
+# typo fails loudly instead of quietly never matching. Every alias you add is one
+# more item the hotbar can actually draw, so it is worth filling this in for the
+# numbered and potion/gem files below -- but only with EditorIDs you have read out of
+# your own game data. Do NOT guess them: a wrong alias silently draws the wrong
+# picture, which is worse than drawing none.
+#
+# Format: alias = Filename Stem        ('#' starts a comment)

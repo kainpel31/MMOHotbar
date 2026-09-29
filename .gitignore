@@ -4,16 +4,14 @@ build/
 out/
 
 # Third-party binaries and anything extracted from them.
-# UI-mod art (SkyUI, Untarnished, ...) belongs to its authors -- only the keycap SWFs
-# whose terms allow redistribution *with credit* are tracked, and each one ships with
-# its credit note beside it. Everything else stays out of the repo; see flash/README.md.
+#
+# NO art belonging to another mod is tracked or shipped. The keycap SWFs in flash/ are
+# SkyUI's and Untarnished UI's own; their terms allow modification, not redistribution, so
+# they stay on your disk and out of this repository entirely -- including out of the FOMOD.
+# The repository and its build artifacts carry exactly one SWF, dist/Interface/MMOHotbar/
+# Hotbar.swf, which is our own build (tools/build_hud_swf.py) and embeds nothing of anyone
+# else's. See flash/README.md for how to produce a keycap set for your own UI.
 *.swf
-!flash/SkyUI/STB_Keycaps.swf
-!flash/Untarnished/STB_Keycaps.swf
-# The hotbar HUD movie is OURS (tools/build_hud_swf.py builds it from our own slot art,
-# and it embeds no icon, keycap, font or SWF of anyone else's), so unlike the UI-mod art
-# above it is tracked and shipped. Without it the installer would ship no hotbar at all
-# -- package.ps1 could only warn, because CI cannot rebuild it: the source art is local.
 !dist/Interface/MMOHotbar/Hotbar.swf
 /Skyui/
 /Untarnished/
@@ -31,11 +29,19 @@ flash/**/work/
 # Local tooling notes
 CLAUDE.md
 AGENTS.md
+.clinerules/
 
 # Local-only asset experiments (user-owned Photoshop/SWF exports, tooling
 # scratch). Never part of the build or the FOMOD package.
-"/Asset dont push to git/"
+# The name has a space, so it is anchored with a slash on both ends. Quoting it
+# ("...") would NOT work: gitignore has no quoting, so the quote characters
+# would become part of the pattern and it would match nothing.
+/Asset dont push to git/
 /dist/Hotbar.swf.xml
 /tools/_out/
 /tools/swfdump/
 __pycache__/
+
+# Reverse-engineering scratch: a throwaway CommonLibSSE-NG checkout plus the
+# one-off analysis/export scripts used while porting the HUD movie.
+/_tmp/

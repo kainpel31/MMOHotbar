@@ -1,8 +1,12 @@
 # Untarnished UI — second set
 
-The other set that ships with the mod. Pick this one if you run
-[Untarnished UI](https://www.nexusmods.com/skyrimspecialedition/mods/75188); pick
-[SkyUI](../SkyUI/README.md) otherwise.
+The other recipe, for the harder case. Use it if you run
+[Untarnished UI](https://www.nexusmods.com/skyrimspecialedition/mods/75188); otherwise
+[build from SkyUI](../SkyUI/README.md), which is the common case.
+
+**The built `STB_Keycaps.swf` is not committed here and not shipped in the installer** — the
+art is Untarnished UI's (and largely SkyUI's), and those mods permit modifying it, not
+redistributing it. Build it locally and install it to `Data/Interface/STB_Keycaps.swf`.
 
 Unlike SkyUI, Untarnished has no standalone `buttonart.swf` — its keycaps live **inside**
 `interface/favoritesmenu.swf`, mixed in with the whole menu. So this is the worked example
@@ -12,11 +16,10 @@ for the harder case in [`../README.md`](../README.md): pulling one clip out of a
 no export name of its own, 323 frames, `Keyboard@1` `Mouse@256` `Gamepad@266` `Unused@290`
 `PS3@302`. The frame layout is the SkyUI one, so it drops straight in.
 
-**Result:** 37 KB, 147 shapes, one sprite, one export, 323 frames. The finished file is
-committed as [`STB_Keycaps.swf`](STB_Keycaps.swf) with [`credits.txt`](credits.txt) beside
-it, and it is byte-identical to the copy upstream publishes as the optional *"STB Hotkey
-System - Untarnished UI keycaps"* Nexus download — so the build below is only needed if a
-future Untarnished release moves the clip off character **157**.
+**Result:** 37 KB, 147 shapes, one sprite, one export, 323 frames — byte-identical to the
+copy upstream publishes as the optional *"STB Hotkey System - Untarnished UI keycaps"* Nexus
+download. Run the build below once per install; if a future Untarnished release moves the clip
+off character **157**, the recipe in [`../README.md`](../README.md) covers finding it again.
 
 The digits need no work here: Untarnished draws a bare glyph per key, centred, with no
 shifted symbol above it — the `@2` / `$4` problem is specific to SkyUI's full key faces.
