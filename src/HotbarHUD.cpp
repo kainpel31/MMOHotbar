@@ -114,10 +114,21 @@ namespace MMO
 			if (a_form->As<RE::SpellItem>()) {
 				return "default_effect";
 			}
-			// Potions are NOT handled, and cannot be with this library: it has neither
-			// FormType::Potion nor a PotionItem class, so a potion is indistinguishable
-			// here from any other form. default_potion (frame 65) goes unused until one of
-			// those exists.
+			// Potions. Potion is 0x2E, and that is compared as the raw value because
+			// CommonLibSSE-NG names that slot AlchemyItem and has no Potion member at all --
+			// the library's name for the slot is what is wrong, not the number. Evidence:
+			// the FormType script SKSE ships (mirrored by the Papyrus index) has
+			// kPotion = 46 = 0x2E, kKey = 45 = 0x2D and kSoulGem = 52 = 0x34; the library
+			// agrees on KeyMaster 0x2D and SoulGem 0x34 and is alone in calling 0x2E
+			// AlchemyItem, a form type neither reference lists. If a checkout ever grows a
+			// FormType::Potion, this one line becomes that name and nothing else moves.
+			//
+			// Only the generic frame. The per-effect ones (potion_health, potion_stamina,
+			// potion_magic, potion_poison, ...) need the potion's effect list, which this
+			// library does not expose either.
+			if (a_form->GetFormType() == static_cast<RE::FormType>(0x2E)) {
+				return "default_potion";
+			}
 			// GetFormType() returns the enum by value, not a handle to it.
 			switch (a_form->GetFormType()) {
 			case RE::FormType::SoulGem:

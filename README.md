@@ -65,13 +65,12 @@ does not expose, and it is also how the sheet is laid out. Every iron sword ther
 the same sword icon.
 
 Covered today: weapons, shields, armour and jewellery, scrolls, ingredients, arrows, tomes
-and notes, shouts, spells, soul gems and house keys. Spells all get the sheet's plain spell
-frame rather than a per-school one — the school lives in the MGEF effect type, which
-CommonLibSSE-NG does not expose. **Potions get no picture at all:** this library has neither
-`FormType::Potion` nor a `PotionItem` class, so a potion cannot be told apart from any other
-form, and the sheet's `default_potion` frame goes unused. Having no icon sheet on disk at
-all (no UI overhaul) degrades the same way — the bar is complete without icons, and the log
-says so once, at attach.
+and notes, shouts, spells, **potions**, soul gems and house keys. Two frames stay generic on
+purpose: spells get the sheet's plain spell frame and potions its plain potion frame, because
+the magic school and the potion's effect list live in fields CommonLibSSE-NG does not expose
+(its `FormType` even names 0x2E `AlchemyItem` where both Papyrus references put `Potion`).
+Having no icon sheet on disk at all (no UI overhaul) degrades the same way — the bar is
+complete without icons, and the log says so once, at attach.
 
 ## Tools
 
