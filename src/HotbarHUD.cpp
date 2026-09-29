@@ -102,6 +102,22 @@ namespace MMO
 				// finer, so journal and map share the note's frame.
 				return book->IsBookTome() ? "book_tome" : "book_note";
 			}
+			// Spells, checked AFTER the scroll because ScrollItem derives from SpellItem
+			// (ScrollItem.h:13) and would otherwise land here.
+			//
+			// The sheet has a frame per school (default_alteration ... default_restoration)
+			// and this stops short of them on purpose. The school lives in the MGEF effect
+			// type, which this CommonLibSSE-NG does not expose -- EffectSetting has no
+			// accessor for it and the field is not even named in the struct -- and reading
+			// it by offset is the kind of fragile guess this plugin does not make. One
+			// honest "a spell" frame beats five wrong ones.
+			if (a_form->As<RE::SpellItem>()) {
+				return "default_effect";
+			}
+			// Potions are NOT handled, and cannot be with this library: it has neither
+			// FormType::Potion nor a PotionItem class, so a potion is indistinguishable
+			// here from any other form. default_potion (frame 65) goes unused until one of
+			// those exists.
 			// GetFormType() returns the enum by value, not a handle to it.
 			switch (a_form->GetFormType()) {
 			case RE::FormType::SoulGem:

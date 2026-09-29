@@ -64,10 +64,14 @@ deliberate — the per-form icon index lives in the game's `ItemMenu`, which Com
 does not expose, and it is also how the sheet is laid out. Every iron sword therefore shows
 the same sword icon.
 
-Covered today: weapons, shields and armour. A slot bound to a potion, scroll, ingredient,
-soul gem, ring or amulet shows its frame and key but no picture. Having no icon sheet on
-disk at all (no UI overhaul) degrades the same way — the bar is complete without icons, and
-the log says so once, at attach.
+Covered today: weapons, shields, armour and jewellery, scrolls, ingredients, arrows, tomes
+and notes, shouts, spells, soul gems and house keys. Spells all get the sheet's plain spell
+frame rather than a per-school one — the school lives in the MGEF effect type, which
+CommonLibSSE-NG does not expose. **Potions get no picture at all:** this library has neither
+`FormType::Potion` nor a `PotionItem` class, so a potion cannot be told apart from any other
+form, and the sheet's `default_potion` frame goes unused. Having no icon sheet on disk at
+all (no UI overhaul) degrades the same way — the bar is complete without icons, and the log
+says so once, at attach.
 
 ## Tools
 
