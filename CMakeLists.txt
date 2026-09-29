@@ -127,17 +127,16 @@ endif ()
 if (NOT STB_USE_VCPKG_COMMONLIB AND DEFINED CommonLibSSEPath_NG AND EXISTS "${CommonLibSSEPath_NG}")
 	message(STATUS "CommonLibSSE-NG from: ${CommonLibSSEPath_NG}")
 	set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
-	# The fork would otherwise, on a clean release tag inside CI, DOWNLOAD a published
-	# CommonLibSSE.lib and link that instead of compiling the commit we pinned -- and the
-	# bundle is only accepted when its baked toolset matches the consumer's cl.exe, so it
-	# would silently flip between "builds the pinned source" and "builds a binary" depending
-	# on the runner. Off, so what CI compiles is the commit in COMMONLIBSSE_NG_COMMIT.
-	set(COMMONLIB_PREBUILT OFF CACHE BOOL "" FORCE)
+	# The library publishes a prebuilt CommonLibSSE.lib for its release tags: SHA256-checked,
+	# accepted only when the bundle toolset matches the consumer cl.exe, falling back to a
+	# source build otherwise. Left ON because compiling it is ~400 translation units and dominates
+	# the run, and the pin is that same release commit. -DCOMMONLIB_PREBUILT=OFF compiles it instead.
+	set(COMMONLIB_PREBUILT ON CACHE BOOL "" FORCE)
 	# Skyrim VR off, and this one is not optional: the library takes ENABLE_SKYRIM_VR ON by
 	# default and BSVRInterface.h does #include "openvr.h" inside that guard, while the
 	# headers come from extern/openvr -- a folder that is present in the checkout but EMPTY
 	# (no openvr.h, no openvr_api.lib). The prebuilt bundle is where those normally come
-	# from, which is why turning COMMONLIB_PREBUILT off above surfaced it. We are a
+	# from, which a source build cannot find. We are a
 	# Skyrim SE/AE plugin: BSOpenVR.cpp compiles to an empty TU with VR off, and the
 	# SE+AE pair still defines HAS_SKYRIM_MULTI_TARGETING, which is what lets one DLL
 	# serve SE 1.5.97 and AE 1.6/1.7.

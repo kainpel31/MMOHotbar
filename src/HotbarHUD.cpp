@@ -172,12 +172,13 @@ namespace MMO
 			// not break assignment -- it silently kills the toggle instead. Warn, do not
 			// override: the player may have deliberately pointed it at a modifier they no
 			// longer hold, and picking a different key for them is not our call.
-			if (const auto assign = Settings::AssignModifier(); assign == _presetModifier) {
+			// HKS:: prefix, not Settings:: -- this file lives in namespace MMO.
+			if (const auto assign = HKS::Settings::AssignModifier(); assign == _presetModifier) {
 				logger::warn("MMO hotbar: preset toggle {} is also the ASSIGN modifier, so it "
 				             "will not flip banks -- change one of the two",
 				             HKS::KeyConflict::KeyName(_presetModifier));
 			}
-			if (const auto group = Settings::GroupModifier(); group == _presetModifier) {
+			if (const auto group = HKS::Settings::GroupModifier(); group == _presetModifier) {
 				logger::warn("MMO hotbar: preset toggle {} is also the GROUP modifier, so it "
 				             "will not flip banks -- change one of the two",
 				             HKS::KeyConflict::KeyName(_presetModifier));
