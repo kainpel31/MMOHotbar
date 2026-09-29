@@ -96,20 +96,45 @@ set(Boost_USE_STATIC_LIBS ON)
 
 # CommonLibSSE-NG: one DLL for SE 1.5.97, AE 1.6.x and 1.7.x.
 #
-# Prefer the local checkout pointed at by CommonLibSSEPath_NG. The vcpkg port
-# (commonlibsse-ng 3.7.0) is too old for modern AE: its runtime classifier switches on the
-# MINOR version (case 6 -> AE, default -> SE), so a 1.7.x game is mistaken for SE and the
-# plugin would resolve SE-only offsets (see src/RE/Offsets.Ext.h) against an AE binary.
-# The local checkout classifies "minor >= 6" as AE, which is what we need.
-# Set STB_USE_VCPKG_COMMONLIB=ON to force the vcpkg port instead.
-option(STB_USE_VCPKG_COMMONLIB "Use the vcpkg commonlibsse-ng port instead of CommonLibSSEPath_NG" OFF)
+# The library is a checkout, not a vcpkg dependency. alandtse/CommonLibSSE-NG (the
+# maintained fork) is what CI builds against, pinned by COMMONLIBSSE_NG_COMMIT in
+# .github/workflows/build.yml, and the same fork is what a local build should point at.
+# The vcpkg port (commonlibsse-ng 3.7.0, from the colorglass registry) is deliberately
+# NOT a dependency any more: it classifies the runtime by MINOR version (case 6 -> AE),
+# so an AE 1.7.x game is mistaken for SE and the plugin would resolve SE-only offsets
+# (see src/RE/Offsets.Ext.h) against an AE binary. The fork classifies "minor >= 6" as
+# AE, which is what we need.
+#
+# Where the checkout comes from, in order:
+#   1. -DCommonLibSSEPath_NG=... or the CommonLibSSEPath_NG environment variable;
+#   2. _tmp/CommonLibSSE-NG-ng inside this repo, so unpacking the archive there is
+#      enough and no environment variable is needed. _tmp/ is gitignored, as is
+#      "Asset dont push to git" where the archive is kept.
+# Set STB_USE_VCPKG_COMMONLIB=ON to force the vcpkg port instead; it is no longer
+# installed by vcpkg.json, so that route expects you to have installed it yourself.
+option(STB_USE_VCPKG_COMMONLIB "Use a self-installed vcpkg commonlibsse-ng port instead of a CommonLibSSE-NG checkout" OFF)
 set_from_environment(CommonLibSSEPath_NG)
+if (NOT STB_USE_VCPKG_COMMONLIB AND NOT DEFINED CommonLibSSEPath_NG AND
+	EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/_tmp/CommonLibSSE-NG-ng")
+	set(CommonLibSSEPath_NG "${CMAKE_CURRENT_SOURCE_DIR}/_tmp/CommonLibSSE-NG-ng")
+endif ()
 if (NOT STB_USE_VCPKG_COMMONLIB AND DEFINED CommonLibSSEPath_NG AND EXISTS "${CommonLibSSEPath_NG}")
 	message(STATUS "CommonLibSSE-NG from: ${CommonLibSSEPath_NG}")
 	set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+	# The fork would otherwise, on a clean release tag inside CI, DOWNLOAD a published
+	# CommonLibSSE.lib and link that instead of compiling the commit we pinned -- and the
+	# bundle is only accepted when its baked toolset matches the consumer's cl.exe, so it
+	# would silently flip between "builds the pinned source" and "builds a binary" depending
+	# on the runner. Off, so what CI compiles is the commit in COMMONLIBSSE_NG_COMMIT.
+	set(COMMONLIB_PREBUILT OFF CACHE BOOL "" FORCE)
 	add_subdirectory("${CommonLibSSEPath_NG}" ./CommonLibSSE/build)
 else ()
-	message(STATUS "CommonLibSSE-NG from vcpkg (AE 1.7.x will be misdetected as SE)")
+	message(WARNING
+		"No CommonLibSSE-NG checkout found (CommonLibSSEPath_NG). Falling back to the "
+		"vcpkg port, which misclassifies AE 1.7.x as SE -- see the comment block above. "
+		"Pass -DCommonLibSSEPath_NG=<path>, set the environment variable, or unpack the "
+		"archive into _tmp/CommonLibSSE-NG-ng."
+	)
 	find_package(CommonLibSSE CONFIG REQUIRED)
 endif ()
 

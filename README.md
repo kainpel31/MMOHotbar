@@ -144,8 +144,9 @@ FFDec absent it prints a warning and skips the check — the build still succeed
 
 ## Building
 
-Deps come from `vcpkg.json` (CommonLibSSE-NG, spdlog, nlohmann_json, xbyak, simpleini, …),
-triplet `x64-windows-static`, and CMake needs `VCPKG_ROOT` set.
+Deps come from `vcpkg.json` (spdlog, nlohmann_json, xbyak, simpleini, boost, …), triplet
+`x64-windows-static`, and CMake needs `VCPKG_ROOT` set. CommonLibSSE-NG is **not** a vcpkg
+dependency — it is a checkout, see below.
 
 ### In the cloud — no Visual Studio on your PC
 
@@ -162,14 +163,28 @@ Two things the workflow does on purpose:
   install has; no GitHub runner ships them (`windows-latest` has Visual Studio 2022), so
   `ci` pins no generator at all and leaves `COPY_BUILD` off — `MMOHOTBAR_DEPLOY_DIR` is a
   path on your own PC.
-- it builds **CommonLibSSE-NG from source** at the commit in `COMMONLIBSSE_NG_COMMIT`
-  rather than taking the vcpkg port, for the SE/AE misclassification reason documented at
-  the top of `CMakeLists.txt`.
+- it builds **CommonLibSSE-NG from source** — [`alandtse/CommonLibSSE-NG`](https://github.com/alandtse/CommonLibSSE-NG),
+  the maintained fork — at the commit in `COMMONLIBSSE_NG_COMMIT`, rather than taking the
+  vcpkg port, for the SE/AE misclassification reason documented at the top of
+  `CMakeLists.txt`. The same fork is what a local build is expected to use.
 
 This route needs no compiler, CMake or vcpkg locally. The first run is slow (vcpkg compiles
 Boost and the NG dependencies); later runs restore them from the binary cache.
 
 ### On your own machine
+
+CommonLibSSE-NG has to be a **checkout** next to this repository — it is not installed by
+vcpkg. Either point CMake at one:
+
+```powershell
+cmake --preset default -DCommonLibSSEPath_NG=<path to a CommonLibSSE-NG checkout>
+```
+
+or unpack the archive into `_tmp/CommonLibSSE-NG-ng`, which CMake picks up by itself (no
+environment variable, no `-D`). `_tmp/` is gitignored, so nothing lands in git.
+
+Either way, use [`alandtse/CommonLibSSE-NG`](https://github.com/alandtse/CommonLibSSE-NG) —
+the same fork CI builds — so a local build and the workflow see the same library. Then:
 
 ```powershell
 .\gen.ps1                       # configure (prompts for a deploy path)

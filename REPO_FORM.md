@@ -158,7 +158,9 @@ Versioned: a future `IVersion2` is a separate class; asking for `1` keeps workin
 | **to rebuild the SWF** | Python 3.9+ and Pillow; FFDec's `ffdec-cli.exe` optional (verification only) |
 | **to build in the cloud** | nothing — GitHub Actions does it |
 
-Build deps: CommonLibSSE-NG, spdlog, nlohmann_json, xbyak, simpleini.
+Build deps: spdlog, nlohmann_json, xbyak, simpleini, boost — plus a **checkout** of
+CommonLibSSE-NG ([`alandtse/CommonLibSSE-NG`](https://github.com/alandtse/CommonLibSSE-NG)),
+which is deliberately not a vcpkg dependency.
 
 ---
 
@@ -171,8 +173,10 @@ Push to `main` → `.github/workflows/build.yml` builds on `windows-latest` and 
 - **`MMO-Hotbar-FOMOD`** — the installer
 
 Two deliberate choices in the workflow: it uses the **`ci`** preset (no generator pinned, so
-it configures on the runner's VS 2022), and it builds **CommonLibSSE-NG from source** at the
-commit pinned in `COMMONLIBSSE_NG_COMMIT` rather than taking the vcpkg port.
+it configures on the runner's VS 2022), and it builds **CommonLibSSE-NG from source** —
+[`alandtse/CommonLibSSE-NG`](https://github.com/alandtse/CommonLibSSE-NG), the maintained
+fork — at the commit pinned in `COMMONLIBSSE_NG_COMMIT`, rather than taking the vcpkg port,
+which is no longer a dependency at all.
 
 Locally: `.\gen.ps1` then `cmake --build build --config Release`.
 

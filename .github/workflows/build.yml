@@ -47,7 +47,12 @@ env:
   VCPKG_ROOT: ${{ github.workspace }}/vcpkg
   VCPKG_DEFAULT_TRIPLET: x64-windows-static
   # CommonLibSSE-NG revision to build against. Bump deliberately, not by accident.
-  COMMONLIBSSE_NG_COMMIT: b93280e832f263dbef44e44cbe2936622a02f91a
+  # alandtse/CommonLibSSE-NG -- the maintained CommonLibSSE-NG fork (v10.0.0 at this pin).
+  # Every API this plugin uses was checked against this tree: RE::FormType still names 0x2E
+  # AlchemyItem with no Potion member, GetFormType() returns by value, and both
+  # CommonLibSSE::CommonLibSSE and the EffectSetting/TESObjectWEAP/BGSBipedObjectForm
+  # members the HUD code calls are present. See HotbarHUD.cpp ItemIconLabel.
+  COMMONLIBSSE_NG_COMMIT: d61bca4de789428aa7d98a770b1323ddf1bb855c
   # CMake the runner is told to use. Must be >= 4.2 for the "Visual Studio 18 2026" generator
   # the "ci" preset names, which the image's own 3.31.6 does not have. SHA-256 of the official
   # windows-x86_64 zip, from github.com/Kitware/CMake/releases/download/v4.4.3/cmake-4.4.3-SHA-256.txt.
@@ -88,7 +93,7 @@ jobs:
       - name: Clone CommonLibSSE-NG
         shell: pwsh
         run: |
-          git clone --filter=blob:none https://github.com/CharmedBaryon/CommonLibSSE-NG.git "$env:RUNNER_TEMP/CommonLibSSE-NG"
+          git clone --filter=blob:none https://github.com/alandtse/CommonLibSSE-NG.git "$env:RUNNER_TEMP/CommonLibSSE-NG"
           git -C "$env:RUNNER_TEMP/CommonLibSSE-NG" checkout $env:COMMONLIBSSE_NG_COMMIT
           git -C "$env:RUNNER_TEMP/CommonLibSSE-NG" --no-pager log -1 --format='NG at %H %s'
 

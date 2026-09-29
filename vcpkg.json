@@ -6,7 +6,7 @@
   "dependencies": [
     "boost-atomic",
     "boost-stl-interfaces",
-    "commonlibsse-ng",
+    "directxtk",
     "nlohmann-json",
     "magic-enum",
     "catch2",
