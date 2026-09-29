@@ -51,6 +51,27 @@ InputHandler* InputHandler::GetSingleton()
 		// that share the assign path. Transient menus (cursor, tooltips) are ignored so an
 		// in-progress capture isn't dropped by an unrelated toggle.
 		const std::string_view name{ a_event->menuName.c_str() };
+
+		// Menu state decides whether the bar is drawn. A menu can open or close between
+		// two HUD frames, so pull the next frame's poll forward instead of letting the
+		// bar linger over a menu for up to a few frames.
+		MMO::HotbarHUDView::RefreshVisibility();
+
+		// The HUD movie is about to be destroyed, or has just been rebuilt.
+		if (name == RE::HUDMenu::MENU_NAME) {
+			if (a_event->opening) {
+				// Any clip we still hold belongs to a movie that is already gone. Forget
+				// it without releasing: see HotbarHUDView::Forget. This is also the
+				// address-independent rebuild signal, so it also covers the case where
+				// the new movie reuses the freed one's address and the check in AdvanceHud
+				// sees no change at all.
+				MMO::HotbarHUDView::Forget();
+			} else {
+				// Closing: the movie is still alive, so let go of the clip properly.
+				MMO::HotbarHUDView::Detach();
+			}
+			return RE::BSEventNotifyControl::kContinue;
+		}
 		if (name != RE::FavoritesMenu::MENU_NAME &&
 			name != RE::InventoryMenu::MENU_NAME &&
 			name != RE::ContainerMenu::MENU_NAME &&

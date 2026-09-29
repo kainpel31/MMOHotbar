@@ -21,9 +21,12 @@ namespace MMO
 	// The movie is our own build (tools/build_hud_swf.py): for each of the 12 slots it
 	// defines three named display objects, addressed here by name --
 	//     frame<i>  DefineShape2   the slot art
-	//     icon<i>   DefineSprite   an empty clip, reserved for a runtime icon sheet
+	//     icon<i>   DefineSprite   an empty clip we loadMovie() the PLAYER'S OWN icon
+	//                              sheet into, then drive with gotoAndStop(<label>)
 	//     key<i>    DefineEditText the keycap label, which we write with SetText
-	// Nothing in it belongs to another mod; no SkyUI (or other) art is embedded.
+	// Nothing in it belongs to another mod; no SkyUI (or other) art is embedded. The
+	// icons come from a file already on the player's disk, loaded at run time, so
+	// nothing of theirs is redistributed either. See kIconSheets in the .cpp.
 	//
 	// Loading is the standard Scaleform dance every HUD mod uses: create an empty
 	// MovieClip on the HUD movie's _root at the next free depth, then loadMovie() into
@@ -48,6 +51,25 @@ namespace MMO
 		// load). Optional -- the labels are diffed every frame anyway, so this only
 		// shortens the window in which a stale label is on screen.
 		static void MarkDirty();
+
+		// Forget the attached clip WITHOUT touching the old movie. Call it whenever the game
+		// is about to rebuild the HUD (pre-load, new game): the GFxValue must be released
+		// while its movie is still alive, and the next HUD frame then attaches afresh. Also
+		// clears a sticky failure so a transient error can retry.
+		static void Detach();
+
+		// Same bookkeeping reset, but the clip is NOT released -- for the paths where the
+		// movie that owned it is already gone (the HUD menu is opening, or the movie was
+		// rebuilt without telling us). Releasing there is not a leak-free shortcut: a
+		// GFxValue holding a display object releases through the movie's own object
+		// interface, so dropping it late calls back into freed movie state. The object
+		// itself is small and this runs at most once per HUD rebuild.
+		static void Forget();
+
+		// Re-read the menu state on the next HUD frame instead of waiting out the poll
+		// interval. Call it when a menu opens or closes, so the bar never lingers over a
+		// menu (or stays hidden for a frame after one closes).
+		static void RefreshVisibility();
 
 	private:
 		static void AdvanceHud(RE::HUDMenu* a_this, float a_interval, std::uint32_t a_currentTime);

@@ -1,5 +1,16 @@
 #pragma once
 
+// UNUSED -- nothing includes this header, and it is not written by any generator.
+//
+// It belonged to a first approach to the hotbar's icons: bake our own icon sheet into
+// Hotbar.swf and map EditorID -> frame in this table. That was dropped in favour of
+// loading the PLAYER'S OWN icon sheet at run time (see HotbarHUD::ItemIconLabel and
+// kIconSheets in HotbarHUDView.cpp), which needs no art in the repository and no
+// redistribution, and which the sheet's own frame labels make much smaller.
+//
+// It is kept only until the mapping for the remaining item kinds has landed in
+// HotbarHUD::ItemIconLabel; then it can be deleted outright.
+
 // GENERATED FILE -- do not edit by hand.
 // Written by tools/build_hud_swf.py from "Asset dont push to git"/<category>/*.png.
 // Re-run `python tools/build_hud_swf.py` after adding or renaming an icon.

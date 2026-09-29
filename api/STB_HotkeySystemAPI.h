@@ -102,8 +102,11 @@ namespace STB::HotkeySystem
 		// that starts charging a shout needs it in the voice slot before it returns.
 		//
 		// false means nothing was equipped: the player un-favorited the entry (the binding
-		// is dropped) or no longer holds the form. Do not go ahead with whatever you were
-		// going to do -- for a shout key that would fire whatever is still in the slot.
+		// is dropped), no longer holds the form, or the call came from a thread other than
+		// the main one. Do not go ahead with whatever you were going to do -- for a shout key
+		// that would fire whatever is still in the slot. There is no deferred variant on
+		// purpose: this has to be answered before it returns, so an off-thread call is
+		// refused rather than queued behind your next frame.
 		//
 		// A successful call also tells STB Hotkey System that you have handled this press,
 		// so it will not equip the same entry again a moment later from its own input sink.

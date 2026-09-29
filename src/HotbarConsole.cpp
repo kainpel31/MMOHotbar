@@ -10,8 +10,10 @@ namespace MMO
 		bool FireSlot(RE::StaticFunctionTag*, std::int32_t a_slot)
 		{
 			constexpr auto maxSlot = static_cast<std::int32_t>(HotbarHUD::kSlotCount);
-			if (a_slot < 1 || a_slot > maxSlot) {
-				logger::warn("MMOHotbar.FireSlot: slot {} out of range (1-{})", a_slot, maxSlot);
+			const auto    shown = static_cast<std::int32_t>(HotbarHUD::VisibleSlotCount());
+			if (a_slot < 1 || a_slot > shown) {
+				logger::warn("MMOHotbar.FireSlot: slot {} out of range (1-{}, {} slot(s) shown)",
+				             a_slot, shown, maxSlot);
 				return false;
 			}
 			return HotbarHUD::ExecuteSlot(static_cast<std::uint32_t>(a_slot - 1));

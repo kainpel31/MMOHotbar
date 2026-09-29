@@ -9,6 +9,10 @@ The bar has **two independent 12-slot preset banks**. Tap `X` (configurable in
 `MMOHotbar.ini`) to switch banks; the same key can carry a different item in each
 preset. Bind through the normal assign flow and the visible bank updates automatically.
 
+> **Compatibility:** MMOHotbar *replaces* STB Hotkey System - do not install both. If
+> `STB_HotkeySystem.dll` is present, MMOHotbar refuses to load and logs why (they share the
+> co-save id `HKSY`, the same vtable hooks and the same exported API).
+
 ## Core (from STB, unchanged behaviour)
 
 Chord binds (`modifier + key`, optional 2-key chords) assigned live from the
@@ -40,15 +44,30 @@ See upstream [README](https://github.com/STB-Team/STB-Hotkey-System) and
   `[Hotbar] iPresetModifierScanCode = 45`.
 - DLL/plugin renamed to `MMOHotbar` v2.0.0.
 
-### The bar's movie, and what it does not draw yet
+### The bar's movie, and where its icons come from
 
 `dist/Interface/MMOHotbar/Hotbar.swf` is our own build (`python tools/build_hud_swf.py`,
 see [Tools](#tools)) and is tracked in git, so the installer always ships it. Per slot it
 defines `frame<i>` (the art), `key<i>` (a text field the plugin writes) and `icon<i>` (an
-empty clip). **The `icon<i>` clips stay empty:** CommonLibSSE-NG exposes no per-form icon
-index, so which frame of which icon sheet belongs to a given form cannot be derived here
-without guessing. The frames and key labels are correct; a slot shows its frame and the key
-bound to it, with no item picture.
+empty clip the plugin loads a movie into).
+
+**None of anyone else's art is embedded.** The `icon<i>` clips are filled at run time from
+an icon sheet already on the player's disk — the one Skyrim and UI overhauls such as
+SkyUI ship — loaded through the same `loadMovie()` call the bar itself uses. The repository
+holds no item art and the installer redistributes none.
+
+The sheet labels its own frames (`weapon_greatsword`, `armor_head`, …), so the plugin
+addresses them by label. Choosing one needs only the item's *kind*, which comes straight
+off the form: `TESObjectWEAP::GetWeaponType()`, and for armour the biped slot mask plus the
+armour type (`HotbarHUD::ItemIconLabel`). Mapping on the kind rather than the item is
+deliberate — the per-form icon index lives in the game's `ItemMenu`, which CommonLibSSE-NG
+does not expose, and it is also how the sheet is laid out. Every iron sword therefore shows
+the same sword icon.
+
+Covered today: weapons, shields and armour. A slot bound to a potion, scroll, ingredient,
+soul gem, ring or amulet shows its frame and key but no picture. Having no icon sheet on
+disk at all (no UI overhaul) degrades the same way — the bar is complete without icons, and
+the log says so once, at attach.
 
 ## Tools
 
@@ -109,9 +128,11 @@ The output is character-id-addressed, which is the contract the C++ relies on:
 | 30…41 | `DefineEditText` | the 12 `key<i>` labels, pre-filled with `1`…`12` |
 
 `frame<i>`, `icon<i>` and `key<i>` are then placed on the main timeline with `PlaceObject2`
-at depths `10 + 3i`, `11 + 3i`, `12 + 3i`, bottom layer first. **`kBarWidth`/`kBarHeight` in
-[`src/HotbarHUDView.cpp`](src/HotbarHUDView.cpp) must stay in step with `SLOT_PX` and
-`SLOTS`** — the C++ positions the clip from those numbers.
+at depths `10 + 3i`, `11 + 3i`, `12 + 3i`, bottom layer first. **`kSlotPx` in
+[`src/HotbarHUDView.cpp`](src/HotbarHUDView.cpp) must stay in step with `SLOT_PX`** — the
+C++ measures the bar from it. How many of the 12 slots are actually shown, how big the bar
+is and where it sits are all `[Hotbar]` settings in `dist/SKSE/Plugins/MMOHotbar.ini`
+(`iVisibleSlots`, `fBarScale`, `fBarX`, `fBarY`); the extra cells stay in the movie, hidden.
 
 After writing, `verify()` round-trips the file through `ffdec -swf2xml` and asserts the tag
 counts (1 bitmap, 1 shape, 12 sprites, 12 texts) and that every `frame<i>`/`icon<i>`/`key<i>`

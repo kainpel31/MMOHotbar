@@ -5,6 +5,7 @@
 #include "Settings.h"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <mutex>
 #include <utility>
@@ -14,6 +15,12 @@ namespace HKS::EquipDispatch
 {
 	namespace
 	{
+		// The thread the game runs on, as SKSEPlugin_Load saw it. Read from the plugin
+		// API, which other mods -- and Papyrus -- can call from anywhere, so it is the
+		// one thing EquipNow cannot assume. 0 means "not captured yet"; the guard below
+		// treats that as "assume main thread" rather than locking everyone out.
+		std::atomic<unsigned long> g_mainThread{ 0 };
+
 		// Core equip-slot forms (Skyrim.esm). Looked up by ID so we never go through
 		// GetObject<T>'s RTTI cast on a possibly-bad default-object entry.
 		RE::BGSEquipSlot* EquipSlot(RE::FormID a_id)
@@ -894,11 +901,27 @@ namespace HKS::EquipDispatch
 		std::vector<std::pair<RE::FormID, std::chrono::steady_clock::time_point>>        g_claims;
 	}
 
+	void CaptureMainThread()
+	{
+		g_mainThread.store(::GetCurrentThreadId(), std::memory_order_relaxed);
+	}
+
 	bool EquipNow(const ItemId& a_id)
 	{
 		if (!a_id) {
 			return false;
 		}
+
+		// Everything below drives the actor's equipment state, which only the game thread
+		// may touch. A plugin-API caller on another thread gets the documented "nothing was
+		// equipped" answer instead of the corruption a direct call would cause -- and it is
+		// the right answer anyway: the caller is about to act on the same press.
+		const auto mainThread = g_mainThread.load(std::memory_order_relaxed);
+		if (mainThread != 0 && ::GetCurrentThreadId() != mainThread) {
+			logger::error("EquipNow {:08X}: refusing, called off the main thread", a_id.form);
+			return false;
+		}
+
 		const auto state = Favorites::Query(a_id.form);
 		if (state == Favorites::State::kUnfavorited) {
 			HotkeyManager::GetSingleton()->RemoveByItem(a_id);

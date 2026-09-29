@@ -8,6 +8,12 @@ namespace HKS::Serialization
 {
 	namespace
 	{
+		// Upper bounds for counts read back from a co-save. A truncated / corrupt file can
+		// hand us 0xFFFFFFFF, and reserve() on that is a bad_alloc -> CTD on loading a save.
+		constexpr std::uint32_t kMaxHotkeys = 4096;
+		constexpr std::uint32_t kMaxKeysPerBind = 64;
+		constexpr std::uint32_t kMaxItemsPerHotkey = 512;
+
 		template <class T>
 		bool Write(SKSE::SerializationInterface* a_intfc, const T& a_value)
 		{
@@ -94,7 +100,7 @@ namespace HKS::Serialization
 		{
 			std::uint32_t deviceRaw = 0;
 			std::uint32_t nKeys = 0;
-			if (!Read(a_intfc, deviceRaw) || !Read(a_intfc, nKeys)) {
+			if (!Read(a_intfc, deviceRaw) || !Read(a_intfc, nKeys) || nKeys > kMaxKeysPerBind) {
 				return false;
 			}
 			a_out.device = static_cast<RE::INPUT_DEVICE>(deviceRaw);
@@ -149,8 +155,8 @@ namespace HKS::Serialization
 			const bool withBank = version >= kVersion;
 
 			std::uint32_t count = 0;
-			if (!Read(a_intfc, count)) {
-				logger::error("failed reading hotkey count");
+			if (!Read(a_intfc, count) || count > kMaxHotkeys) {
+				logger::error("failed reading hotkey count (or implausible: {})", count);
 				break;
 			}
 
@@ -191,7 +197,7 @@ namespace HKS::Serialization
 						break;
 					}
 					std::uint32_t nItems = 0;
-					if (!Read(a_intfc, nItems)) {
+					if (!Read(a_intfc, nItems) || nItems > kMaxItemsPerHotkey) {
 						logger::error("truncated item count on hotkey #{}", i);
 						break;
 					}
@@ -250,6 +256,7 @@ namespace HKS::Serialization
 	{
 		HotkeyManager::GetSingleton()->Clear();
 		MMO::HotbarHUD::SetActivePreset(1);
+		MMO::HotbarHUDView::MarkDirty();
 	}
 
 	void Register()

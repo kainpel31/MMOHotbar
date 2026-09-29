@@ -4,6 +4,7 @@
 #include "MenuAssign.h"
 #include "Settings.h"
 
+#include <array>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -112,12 +113,29 @@ namespace HKS
 		// chain is relinked around whatever is withheld, the original runs over the rest, and
 		// every `next` is put back: the chain belongs to the input manager and is walked
 		// again by the sinks after us, so it must come out of here exactly as it went in.
-		std::vector<std::pair<RE::InputEvent*, RE::InputEvent*>> saved;
-		RE::InputEvent*                                          head = nullptr;
-		RE::InputEvent*                                          tail = nullptr;
+		//
+		// The record of those `next` pointers lives inline, because this is the hottest path
+		// in the plugin: a heap vector here is an allocation per input dispatch, and a
+		// reused `static` one is worse than slow -- if the original re-enters this function
+		// on the same thread (a sink that opens a menu mid-dispatch), the nested call would
+		// clear the outer frame's list and the outer `next` links would never be restored,
+		// leaving the game's input chain relinked. `spilled` is only ever reached by a chain
+		// longer than a keyboard's worth of simultaneous keys.
+		using Link = std::pair<RE::InputEvent*, RE::InputEvent*>;
+		constexpr std::size_t        kInlineLinks = 32;
+		std::array<Link, kInlineLinks> links{};
+		std::vector<Link>             spilled;
+		std::size_t                   linkCount = 0;
+		RE::InputEvent*               head = nullptr;
+		RE::InputEvent*               tail = nullptr;
 
 		for (auto* e = *a_event; e; e = e->next) {
-			saved.emplace_back(e, e->next);
+			if (linkCount < kInlineLinks) {
+				links[linkCount] = Link{ e, e->next };
+			} else {
+				spilled.emplace_back(e, e->next);
+			}
+			++linkCount;
 
 			const bool blocking = assignHeld || groupHeld;
 			bool       deliver = true;
@@ -164,8 +182,11 @@ namespace HKS
 		// runs its own prologue/epilogue, which it would have run anyway.
 		const auto result = _ProcessEvent(a_this, &head, a_source);
 
-		for (auto& [node, next] : saved) {
-			node->next = next;
+		for (std::size_t i = 0; i < linkCount && i < kInlineLinks; ++i) {
+			links[i].first->next = links[i].second;
+		}
+		for (const auto& link : spilled) {
+			link.first->next = link.second;
 		}
 		return result;
 	}

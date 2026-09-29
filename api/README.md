@@ -47,7 +47,7 @@ Both directions are covered: key → what it fires, and entry → which key it i
 | | |
 |---|---|
 | `Resolve(device, key, out, max)` | What pressing that key would fire **right now**, chords included — it reads the keys currently held, so call it while handling the key-down. Returns the true count, which may exceed `max`. |
-| `EquipNow(binding)` | Equip one entry synchronously on the main thread, so you can act on the same press. `false` means nothing was equipped — do not go ahead. Also tells the mod you have handled this press. |
+| `EquipNow(binding)` | Equip one entry synchronously on the main thread, so you can act on the same press. `false` means nothing was equipped — do not go ahead. Also tells the mod you have handled this press. Called off the main thread it refuses; there is no queued variant. |
 | `GetHotkey(form)` | The `Chord` a form sits on, any instance of it. `keyCount == 0` means unbound, so this is also the "is it bound" question. |
 | `GetHotkeyExact(binding)` | The same, for one specific instance — fill in `ench` and `health` from the row's extra data. This is the one an item list wants: a plain sword and an enchanted copy of the same base are different bindings. |
 

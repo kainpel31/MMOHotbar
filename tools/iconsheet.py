@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # iconsheet.py - shared discovery + ordering for the hotbar's item icons.
 #
+# UNUSED. This belongs to the abandoned "bake our own sheet into Hotbar.swf" approach.
+# The bar instead loads the PLAYER'S OWN icon sheet at run time (HotbarHUD.cpp
+# ItemIconLabel / kIconSheets in HotbarHUDView.cpp) and addresses its frame labels, so no
+# icon art lives in the repository and nothing needs baking. Kept alongside
+# src/HotbarIconTable.h, which is the other half of the same approach and equally unused.
+#
 # The art lives in "Asset dont push to git/<category>/*.png": one 32x32 RGBA icon per
 # item. It is local-only and never tracked (see .gitignore); tools/build_hud_swf.py
 # bakes it into dist/Interface/MMOHotbar/Hotbar.swf and writes the C++ lookup table

@@ -182,9 +182,11 @@ Locally: `.\gen.ps1` then `cmake --build build --config Release`.
 
 | limitation | detail |
 |---|---|
-| **Hotbar slots show no item picture** | The SWF's `icon<i>` clips stay **empty**. CommonLibSSE-NG exposes no per-form icon index, so which frame of which icon sheet belongs to a given form cannot be derived without guessing. `frame<i>` and `key<i>` are correct — a slot shows its frame and its key, with no item art. |
+| **Hotbar icons are per KIND, not per item** | The `icon<i>` clips are filled at run time from an icon sheet already on the player's disk (`Interface/SkyUI/IconsItem_PsychoSweve.swf` and friends), addressed by the sheet's own frame labels. Picking one needs only the form's kind — `TESObjectWEAP::GetWeaponType()`, or the biped slot mask plus armour type — because the per-form icon index lives in the game's `ItemMenu`, which CommonLibSSE-NG does not expose. Every iron sword shows the same sword icon. |
+| **Only weapons, shields and armour are mapped** | The frame labels known so far cover those. Potions, scrolls, ingredients, soul gems, rings and amulets have no mapping yet, so their slots show `frame<i>` and `key<i>` with no picture. Adding one is a single `case` in `HotbarHUD::ItemIconLabel`. |
+| **No icon sheet on disk → no icons** | Not an error. With no UI overhaul installed, no sheet loads and the bar keeps its frames and keycaps; the log says so once at attach. |
 | **Keycaps are no longer bundled** | `STB_Keycaps.swf` is not shipped. SkyUI and Untarnished UI permit *modifying* their art, not redistributing it, so the files are off git and out of the installer. With no `Interface/STB_Keycaps.swf` the keycap import returns early and the hotkeys work exactly as before — list rows simply show no key glyph. |
-| **`src/HotbarIconTable.h` is a WIP stub** | `kTable` is still empty and `Raw()` does not yet normalize. Nothing includes the header, so it has no effect on the build. |
+| **`src/HotbarIconTable.h` is unused** | It was a stub for the abandoned "bake our own sheet into the SWF" approach, which the run-time approach above replaced. Nothing includes it, `kTable` is empty and `Raw()` does not normalize. Safe to delete. |
 | **AE below 1.6.629 unsupported** | `UsesStructsPost629(true)`. SE is unaffected. |
 
 ---

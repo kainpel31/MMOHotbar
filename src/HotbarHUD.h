@@ -69,6 +69,18 @@ public:
     // The 12 slots of the active bank, in assignment order.
     static std::array<SlotView, kSlotCount> Snapshot();
 
+    // Frame LABEL for an item's kind in the icon sheet the HUD loads from the player's
+    // own UI files (see HotbarHUDView): "weapon_greatsword", "armor_head", ... Empty
+    // when the form is not a weapon or an armour piece -- the categories the sheet
+    // listing covers so far. A slot shows the frame for its FIRST item, so a group
+    // reads as the kind of the thing you press first.
+    //
+    // This is a mapping on the form's TYPE, not on the item: every iron sword is
+    // "weapon_sword". That is deliberate and it is what makes the icons possible at
+    // all -- the per-form icon index lives in the game's ItemMenu, which CommonLibSSE-NG
+    // does not expose -- and it is also how the sheet itself is organised.
+    [[nodiscard]] static std::string ItemIconLabel(const HKS::ItemId& a_id);
+
     // Equip whatever slot a_slot holds (toggle/group semantics from STB).
     // Returns false when the slot is empty.
     static bool ExecuteSlot(std::uint32_t a_slot);
@@ -82,8 +94,32 @@ public:
     // can drive the SWF with the keys the player actually bound.
     static std::vector<std::uint32_t> SlotKeycapFrames(std::uint32_t a_slot);
 
+    // How many of the 12 slots the bar shows and accepts ([Hotbar] iVisibleSlots,
+    // clamped to 1..12). The SWF is always built with 12 slots -- they are hidden, not
+    // rebuilt -- so shrinking the bar is free and needs no re-run of the SWF builder.
+    // Binds that already sit in a hidden slot keep working on their own chord; they are
+    // simply not on the bar.
+    static std::size_t VisibleSlotCount();
+
+    // Where and how big the bar is, from [Hotbar]. Offsets are in stage pixels and are
+    // read against the VISIBLE stage, so the same numbers hold at 16:9 and ultrawide:
+    //   fBarX     horizontal offset from the stage's middle. 0 = centred, -200 = 200px
+    //             left. Prefixed because [Icons] fX means something else entirely.
+    //   fBarY     height of the bar's BOTTOM edge above the bottom of the stage. 32 is
+    //             the vanilla-ish default the bar shipped with.
+    //   fBarScale size as a percentage (100 = as drawn, clamped to 25..400). The bar is
+    //             anchored by its drawn bottom-centre, so scaling does not walk it across
+    //             the screen.
+    static float BarScalePercent();
+    static float BarOffsetX();
+    static float BarOffsetY();
+
 private:
     static inline std::uint32_t _presetModifier = 45;  // X
     static inline std::uint32_t _activePreset = 1;     // live bank, 1 or 2
+    static inline std::size_t   _visibleSlots = kSlotCount;
+    static inline float         _barScalePercent = 100.0f;
+    static inline float         _barOffsetX = 0.0f;
+    static inline float         _barOffsetY = 32.0f;
 };
 }  // namespace MMO

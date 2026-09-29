@@ -28,14 +28,25 @@ namespace HKS::EquipDispatch
 
 	// Equip synchronously, on the calling thread, which must be the main one -- an input
 	// handler qualifies. Returns false when nothing was equipped: the binding was dropped
-	// because the player un-favorited it, or they no longer hold the form. Exposed through
-	// the plugin API for mods that must act on the same press, such as one that starts
-	// charging a shout and needs it already in the voice slot.
+	// because the player un-favorited it, they no longer hold the form, or the call came
+	// from a thread other than the main one, which is refused rather than acted on.
+	// Exposed through the plugin API for mods that must act on the same press, such as one
+	// that starts charging a shout and needs it already in the voice slot.
+	//
+	// The return value has to stay the API's "may I act on this press" answer. Fire()
+	// marshals onto the main thread through the SKSE task queue, but that only works for
+	// OUR binding: a caller that needs the entry in hand before EquipNow returns (the
+	// shout case above) cannot be deferred, so the contract is refused off-thread rather
+	// than quietly turned into fire-and-forget.
 	//
 	// A successful call also CLAIMS the binding for a moment (see IsClaimed): the caller
 	// has handled this press, and our own input sink -- which runs after the player-input
 	// sinks in the same dispatch -- must not equip it a second time on top.
 	[[nodiscard]] bool EquipNow(const ItemId& a_id);
+
+	// Remember the game's main thread. Call once from SKSEPlugin_Load, which SKSE itself
+	// runs there; EquipNow compares every call against it.
+	void CaptureMainThread();
 
 	// True while a_id is still claimed by a recent EquipNow. The window is deliberately
 	// short: it only has to cover the rest of the keypress that claimed it, and a stale
