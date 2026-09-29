@@ -89,7 +89,8 @@ namespace HKS::Favorites
 			if (!menu) {
 				return;
 			}
-			void* magicList = menu->GetRuntimeData().unk30;
+			// This library names the field; the old CommonLibSSE-NG left it as unk30.
+		void* magicList = menu->GetRuntimeData().itemList;
 			if (!magicList) {
 				return;
 			}

@@ -57,7 +57,9 @@ namespace HKS::EquipDispatch
 				return false;
 			}
 			const auto slot = static_cast<std::uint32_t>(race->data.shieldObject.get());
-			return slot < 32 && (std::to_underlying(armo->GetSlotMask()) & (1u << slot)) != 0;
+			// GetSlotMask() returns REX::EnumSet in this library, not the plain enum;
+		// .underlying() is the raw bitmask this test wants.
+		return slot < 32 && (armo->GetSlotMask().underlying() & (1u << slot)) != 0;
 		}
 
 		// What the game does after every favorites equip or unequip, in the menu

@@ -106,7 +106,7 @@ static void SKSEMessageHandler(SKSE::MessagingInterface::Message* message)
 	}
 }
 
-extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
+extern "C" DLLEXPORT bool SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
 {
 	a_info->infoVersion = SKSE::PluginInfo::kVersion;
 	a_info->name = "MMOHotbar";
@@ -129,12 +129,15 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 
 	// Every game address goes through the Address Library (REL::RelocationID + the
 	// VTABLE_/Offset:: constants), so we are not tied to one runtime build.
-	v.UsesAddressLibrary(true);
+	// Both setters lost their bool parameter in this library: the flag is implied by
+	// calling them, and there is no "false" case any more.
+	v.UsesAddressLibrary();
 
 	// Struct layouts changed at 1.6.629; CommonLibSSE-NG resolves the per-runtime layout
-	// for us, so declare the modern one. (Drops support for AE older than 1.6.629, which
-	// nobody runs; SE 1.5.97 is unaffected -- it loads through SKSEPlugin_Query above.)
-	v.UsesStructsPost629(true);
+	// for us, so declare the modern one (was UsesStructsPost629(true)). (Drops support for
+	// AE older than 1.6.629, which nobody runs; SE 1.5.97 is unaffected -- it loads through
+	// SKSEPlugin_Query above.)
+	v.UsesUpdatedStructs();
 
 	// CompatibleVersions is deliberately NOT set: a non-empty list is a strict whitelist.
 	// It used to hold RUNTIME_SSE_LATEST, which this CommonLib defines as 1.6.678, so AE
@@ -166,7 +169,7 @@ void InitializeLog()
 	spdlog::set_pattern("[%l] %v"s);
 }
 
-extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
+extern "C" DLLEXPORT bool SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
 {
 	SKSE::Init(a_skse);
 	InitializeLog();

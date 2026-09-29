@@ -192,7 +192,7 @@ namespace MMO
 		// uses those three names for the KEYCAPS drawn on inventory list rows, and two
 		// unrelated numbers with the same key name in one INI is a trap to edit.
 		const auto slots = ini.GetLongValue("Hotbar", "iVisibleSlots", static_cast<long>(_visibleSlots));
-		_visibleSlots = std::clamp<std::size_t>(slots < 1 ? 1 : static_cast<std::size_t>(slots), kSlotCount);
+		_visibleSlots = std::clamp<std::size_t>(static_cast<std::size_t>(slots < 1 ? 1 : slots), 1, kSlotCount);
 
 		_barScalePercent = std::clamp(
 			static_cast<float>(ini.GetDoubleValue("Hotbar", "fBarScale", _barScalePercent)), 25.0f, 400.0f);

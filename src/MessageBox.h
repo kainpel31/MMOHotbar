@@ -46,13 +46,16 @@ namespace HKS
 			explicit Callback(std::function<void(unsigned int)> a_fn) :
 				fn(std::move(a_fn))
 			{
-				unk0C = 0;
+				pad0C = 0;
 			}
 			~Callback() override = default;
-			void Run(RE::IMessageBoxCallback::Message a_msg) override
+
+			// Was Run(IMessageBoxCallback::Message) with a Message member; the interface
+			// now hands the pressed button index straight through as a byte.
+			void Run(std::uint8_t a_button) override
 			{
 				if (fn) {
-					fn(static_cast<unsigned int>(a_msg));
+					fn(static_cast<unsigned int>(a_button));
 				}
 			}
 		};
@@ -60,6 +63,7 @@ namespace HKS
 		auto* cb = new Callback(std::move(callback));
 		messageBoxData->callback.reset(cb);
 
-		messageBoxData->QueueMessage();
+		// QueueMessage() moved off the data object onto the menu class.
+		RE::MessageBoxMenu::QueueMessage(messageBoxData);
 	}
 }
