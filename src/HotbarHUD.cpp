@@ -223,6 +223,8 @@ namespace MMO
 
 	bool HotbarHUD::ItemIconsEnabled() { return _itemIcons; }
 
+bool HotbarHUD::HudEnabled() { return _hudEnabled; }
+
 	std::uint32_t HotbarHUD::ActivePreset() { return _activePreset; }
 
 	void HotbarHUD::SetActivePreset(std::uint32_t a_preset)

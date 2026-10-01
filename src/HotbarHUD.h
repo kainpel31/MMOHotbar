@@ -120,6 +120,11 @@ public:
     // been measured in game. Switch it on once you know it is cheap on your setup.
     static bool ItemIconsEnabled();
 
+    // [Hotbar] bEnableHUD -- the 12-slot HUD renderer. Set to 0 to leave HUDMenu
+    // untouched, which is the first thing to try if the game misbehaves: it is the
+    // only part of this plugin that draws inside the game's own movie.
+    static bool HudEnabled();
+
 private:
     static inline std::uint32_t _presetModifier = 45;  // X
     static inline std::uint32_t _activePreset = 1;     // live bank, 1 or 2
@@ -128,11 +133,6 @@ private:
     static inline float         _barOffsetX = 0.0f;
     static inline float         _barOffsetY = 32.0f;
     static inline bool          _itemIcons = false;
-		static inline bool          _hudEnabled = true;
-
-		// [Hotbar] bEnableHUD -- the 12-slot HUD renderer. Set to 0 to leave HUDMenu
-		// untouched, which is the first thing to try if the game misbehaves: it is the
-		// only part of this plugin that draws inside the game's own movie.
-		static bool HudEnabled() { return _hudEnabled; }
+    static inline bool          _hudEnabled = true;
 };
 }  // namespace MMO
