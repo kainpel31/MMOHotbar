@@ -203,11 +203,13 @@ namespace MMO
 		_barOffsetY = std::clamp(static_cast<float>(ini.GetDoubleValue("Hotbar", "fBarY", _barOffsetY)),
 		                         0.0f, static_cast<float>(kSlotCount * 64));
 
+		_itemIcons = ini.GetBoolValue("Hotbar", "bShowItemIcons", _itemIcons);
+
 		// The toggle is reported above, by name, so it is not repeated here.
-		logger::info("MMO hotbar: {} of {} slots, {} preset banks, layout x {:+.0f} y {:.0f} scale {:.0f}%",
+		logger::info("MMO hotbar: {} of {} slots, {} preset banks, layout x {:+.0f} y {:.0f} scale {:.0f}%, icons {}",
 		             _visibleSlots, kSlotCount, kBankCount,
 		             static_cast<double>(_barOffsetX), static_cast<double>(_barOffsetY),
-		             static_cast<double>(_barScalePercent));
+		             static_cast<double>(_barScalePercent), _itemIcons ? "on" : "off");
 	}
 
 	std::uint32_t HotbarHUD::PresetModifier() { return _presetModifier; }
@@ -217,6 +219,8 @@ namespace MMO
 	float       HotbarHUD::BarScalePercent() { return _barScalePercent; }
 	float       HotbarHUD::BarOffsetX() { return _barOffsetX; }
 	float       HotbarHUD::BarOffsetY() { return _barOffsetY; }
+
+	bool HotbarHUD::ItemIconsEnabled() { return _itemIcons; }
 
 	std::uint32_t HotbarHUD::ActivePreset() { return _activePreset; }
 

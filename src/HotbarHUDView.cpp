@@ -49,6 +49,14 @@ namespace MMO
 		bool g_attached = false;
 		bool g_failed = false;
 
+		// Attach retry brake. Attaching loads movies, so doing it on consecutive frames
+		// while the HUD is still coming up will stall the game hard; these make the frame
+		// path give up for a while and keep a count so a persistent failure is reported
+		// once every ten tries instead of silently forever.
+		constexpr std::uint32_t kAttachCooldownFrames = 180;  // ~3 s at 60 FPS
+		std::uint32_t           g_attachCooldown = 0;
+		std::uint32_t           g_attachFailures = 0;
+
 		// The attached clip, held by pointer rather than by value. It is owned by the HUD
 		// movie's display list, so it is only ever touched from the HUD thread that is
 		// advancing that very movie.
@@ -113,6 +121,8 @@ namespace MMO
 		g_iconsValid = false;
 		g_iconsLoaded = false;
 		g_visibleKnown = false;
+		g_attachCooldown = 0;
+		g_attachFailures = 0;
 		g_hiddenTick.store(0, std::memory_order_relaxed);
 		g_dirty = true;
 		// Abandoned, not destroyed: the display object died with its movie, and the
@@ -167,8 +177,24 @@ namespace MMO
 			Forget();
 		}
 
-		if (!g_attached && !Attach(a_this)) {
-			return;
+		// Attach loads movies on the frame path. A failure that does not latch g_failed
+		// -- the "movie still loading" case below is the only one -- would otherwise redo
+		// that work EVERY FRAME, which is enough to make the game unplayable. So: back off,
+		// and say so loudly if it keeps happening rather than spinning quietly forever.
+		if (!g_attached) {
+			if (g_attachCooldown > 0) {
+				--g_attachCooldown;
+				return;
+			}
+			if (!Attach(a_this)) {
+				g_attachCooldown = kAttachCooldownFrames;
+				if (++g_attachFailures >= 10 && g_attachFailures % 10 == 0) {
+					logger::warn("hotbar HUD: still not attached after {} attempts -- the bar "
+					             "stays hidden until the HUD movie appears",
+					             g_attachFailures);
+				}
+				return;
+			}
 		}
 		Update();
 	}
@@ -281,8 +307,9 @@ namespace MMO
 		// clip. One loadMovie per slot, not one shared clip, because each slot drives
 		// its own frame on its own timeline; the game caches the SWF resource, so the
 		// eleven after the first are cheap. sendProgress = 1 (true) again, so the frames
-		// exist by the time Attach returns.
-		{
+		// exist by the time Attach returns. Gated on bShowItemIcons, which is OFF by
+		// default: see HotbarHUD::ItemIconsEnabled.
+		if (HotbarHUD::ItemIconsEnabled()) {
 			RE::GFxValue sheetArgs[2];
 			sheetArgs[1] = 1.0;
 			g_iconsLoaded = false;

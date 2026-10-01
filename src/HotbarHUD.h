@@ -114,6 +114,12 @@ public:
     static float BarOffsetX();
     static float BarOffsetY();
 
+    // [Hotbar] bShowItemIcons -- fill the slots from the player's icon sheet. OFF by
+    // default and not out of caution for the art: it is twelve synchronous loadMovie()
+    // calls into a large external SWF, performed on the HUD frame, and that cost has never
+    // been measured in game. Switch it on once you know it is cheap on your setup.
+    static bool ItemIconsEnabled();
+
 private:
     static inline std::uint32_t _presetModifier = 45;  // X
     static inline std::uint32_t _activePreset = 1;     // live bank, 1 or 2
@@ -121,5 +127,6 @@ private:
     static inline float         _barScalePercent = 100.0f;
     static inline float         _barOffsetX = 0.0f;
     static inline float         _barOffsetY = 32.0f;
+    static inline bool          _itemIcons = false;
 };
 }  // namespace MMO
