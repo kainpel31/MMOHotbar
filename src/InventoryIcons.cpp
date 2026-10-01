@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -17,8 +18,29 @@ namespace HKS
 {
 	namespace
 	{
-		constexpr const char* kKeycapSwf = "Interface/STB_Keycaps.swf";
-		constexpr const char* kKeycapExport = "STBKeycap";
+		// Keycap art. Two sources, chosen by [Icons] iKeycapSource, and they are
+		// interchangeable here because BOTH use the same frame convention this file
+		// already speaks: Keyboard@1, Mouse@256, Gamepad@266.
+		//   0  STB_Keycaps.swf exporting STBKeycap  -- ours, built from a UI mod's art
+		//   1  SkyUI's own Interface/SkyUI/buttonart.swf, exporting ButtonArt (char 153)
+		// Either is optional: if the file is missing the import finds no source movie and
+		// rows simply show no key glyph.
+		struct KeycapArt
+		{
+			const char* path;
+			const char* exportName;
+		};
+		constexpr KeycapArt kKeycapArt[] = {
+			{ "Interface/STB_Keycaps.swf", "STBKeycap" },
+			{ "Interface/SkyUI/buttonart.swf", "ButtonArt" },
+		};
+
+		[[nodiscard]] const KeycapArt& SelectedKeycap()
+		{
+			const auto index = Settings::KeycapSource();
+			return kKeycapArt[index >= 0 && index < static_cast<int>(std::size(kKeycapArt)) ? index : 0];
+		}
+
 		constexpr const char* kItemListPath = "_root.Menu_mc.inventoryLists.panelContainer.itemList";
 
 		// skyui.defines.Inventory.ICT_ACTIVE_EFFECT. The Magic menu's Active Effects tab
@@ -126,7 +148,7 @@ namespace HKS
 			}
 
 			if (!icon.IsObject()) {
-				a_parent->AttachMovie(&icon, kKeycapExport, a_name, a_depth, nullptr);
+				a_parent->AttachMovie(&icon, SelectedKeycap().exportName, a_name, a_depth, nullptr);
 				if (!icon.IsObject()) {
 					return 0.0;
 				}
@@ -567,7 +589,9 @@ namespace HKS
 	void InventoryIcons::LoadResources()
 	{
 		g_loadReq.clear();
-		g_loadReq.push_back(ImportData::loadReq{ .sourcePath = kKeycapSwf, .exports = { kKeycapExport }, .resources = {} });
+		g_loadReq.push_back(ImportData::loadReq{ .sourcePath = SelectedKeycap().path,
+				                                    .exports = { SelectedKeycap().exportName },
+				                                    .resources = {} });
 	}
 
 	void InventoryIcons::Install()

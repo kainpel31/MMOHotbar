@@ -97,6 +97,13 @@ namespace HKS
 		static float IconScale() { return _iconScale; }
 		static float IconY() { return _iconY; }
 
+		// Which keycap art the list rows draw ([Icons] iKeycapSource):
+		//   0  Interface/STB_Keycaps.swf, export STBKeycap (ours, built from a UI mod's art)
+		//   1  SkyUI's own Interface/SkyUI/buttonart.swf, export ButtonArt
+		// Both use the same frame convention, so this only chooses the file. Out of range
+		// falls back to 0.
+		static int KeycapSource() { return _keycapSource; }
+
 		// Draw keycaps in this menu at all.
 		static bool IconsEnabled(MenuKind a_kind)
 		{
@@ -164,6 +171,7 @@ namespace HKS
 		static inline float         _handLabelSize = 14.0f;
 		static inline float         _handLabelGap = 4.0f;
 		static inline bool          _iconAfterName = true;
+		static inline int           _keycapSource = 0;
 		static inline float         _iconScale = 75.0f;
 		static inline float         _iconY = 2.0f;
 		static inline float         _iconX = 40.0f;

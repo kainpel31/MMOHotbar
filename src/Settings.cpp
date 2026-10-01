@@ -57,6 +57,7 @@ namespace HKS
 		_equipMode = static_cast<int>(ini.GetLongValue("Gameplay", "iEquipMode", _equipMode));
 
 		_iconAfterName = ini.GetBoolValue("Icons", "bAfterName", _iconAfterName);
+		_keycapSource = static_cast<int>(ini.GetLongValue("Icons", "iKeycapSource", _keycapSource));
 		_iconScale = static_cast<float>(ini.GetDoubleValue("Icons", "fScale", _iconScale));
 		_iconY = static_cast<float>(ini.GetDoubleValue("Icons", "fY", _iconY));
 		_iconX = static_cast<float>(ini.GetDoubleValue("Icons", "fX", _iconX));

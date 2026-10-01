@@ -128,5 +128,11 @@ private:
     static inline float         _barOffsetX = 0.0f;
     static inline float         _barOffsetY = 32.0f;
     static inline bool          _itemIcons = false;
+		static inline bool          _hudEnabled = true;
+
+		// [Hotbar] bEnableHUD -- the 12-slot HUD renderer. Set to 0 to leave HUDMenu
+		// untouched, which is the first thing to try if the game misbehaves: it is the
+		// only part of this plugin that draws inside the game's own movie.
+		static bool HudEnabled() { return _hudEnabled; }
 };
 }  // namespace MMO

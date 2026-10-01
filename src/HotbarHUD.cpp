@@ -204,6 +204,7 @@ namespace MMO
 		                         0.0f, static_cast<float>(kSlotCount * 64));
 
 		_itemIcons = ini.GetBoolValue("Hotbar", "bShowItemIcons", _itemIcons);
+		_hudEnabled = ini.GetBoolValue("Hotbar", "bEnableHUD", _hudEnabled);
 
 		// The toggle is reported above, by name, so it is not repeated here.
 		logger::info("MMO hotbar: {} of {} slots, {} preset banks, layout x {:+.0f} y {:.0f} scale {:.0f}%, icons {}",

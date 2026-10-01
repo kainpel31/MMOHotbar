@@ -138,6 +138,14 @@ namespace MMO
 
 	void HotbarHUDView::Install()
 	{
+		// [Hotbar] bEnableHUD = 0 leaves HUDMenu completely alone. The rest of the plugin
+		// keeps working, so this is the one switch to flip if the bar itself misbehaves.
+		if (!HotbarHUD::HudEnabled()) {
+			logger::warn("hotbar HUD renderer disabled (bEnableHUD = 0) -- no bar, "
+			             "everything else still works");
+			return;
+		}
+
 		// AdvanceMovie is IMenu vfunc 0x5 (see RE/IMenu.h); the plugin's other menu
 		// hooks write the same slot, so this is the established way in.
 		REL::Relocation<std::uintptr_t> v{ RE::VTABLE_HUDMenu[0] };
