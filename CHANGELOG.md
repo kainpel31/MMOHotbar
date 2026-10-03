@@ -18,10 +18,22 @@ Builds clean. **Not yet tested in game**, and there is one open bug below.
 ### Known issues
 
 * **The game freezes when starting a new game or loading a save** (menu → New Game /
-  Load Clean Game). Reported on two machines. The last log we have stops before the freeze,
-  so the cause is not yet pinned down. Workaround to try: set `[Hotbar] bEnableHUD = 0`.
+  Load Clean Game). Reported on two machines. Still not pinned down — this build only adds
+  the logging needed to find it (see *Diagnostics* below). Workaround to try: set
+  `[Hotbar] bEnableHUD = 0`.
 * The FOMOD installer has been reported as unreliable; what exactly goes wrong is not
   established yet.
+
+### Diagnostics
+
+The log now says enough to locate the freeze instead of just stopping. If the game hangs
+again, please send `Documents\My Games\Skyrim Special Edition\SKSE\MMOHotbar.log`:
+
+* every SKSE message is logged by name as it arrives, so the last line before the hang
+  names the stage the game was in;
+* each start-up step is timed, so the last step that starts without a matching "took N ms"
+  is the one that hung;
+* while the HUD bar is on screen it reports its own frame rate every five seconds.
 
 ### Fixed
 

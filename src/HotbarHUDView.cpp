@@ -3,6 +3,7 @@
 #include "HotbarHUDView.h"
 
 #include <atomic>
+#include <chrono>
 #include <memory>
 
 #include "HotbarHUD.h"
@@ -56,6 +57,33 @@ namespace MMO
 		constexpr std::uint32_t kAttachCooldownFrames = 180;  // ~3 s at 60 FPS
 		std::uint32_t           g_attachCooldown = 0;
 		std::uint32_t           g_attachFailures = 0;
+
+		// Frame-path heartbeat: one line every five seconds, and on the frame path only a
+		// clock read and two compares.
+		//
+		// This bar is the one thing the plugin draws inside the game's own movie, so when
+		// a player reports "the game becomes heavy", this line is what settles whether the
+		// bar is involved. Frames counted against wall-clock give the real frame rate: a
+		// bar drawing at 4/s while the HUD is up is the bug, not a slow machine.
+		void Heartbeat()
+		{
+			using Clock                    = std::chrono::steady_clock;
+			static const Clock::time_point start    = Clock::now();
+			static Clock::time_point       reported = start;
+			static std::uint32_t           frames   = 0;
+
+			const auto now = Clock::now();
+			++frames;
+			if (now - reported < std::chrono::seconds(5)) {
+				return;
+			}
+			reported = now;
+
+			const double seconds = std::chrono::duration<double>(now - start).count();
+			logger::info("hotbar HUD: {} frames in {:.0f}s ({:.0f}/s), attached={}, failed={}",
+			             frames, seconds, static_cast<double>(frames) / seconds, g_attached,
+			             g_failed);
+		}
 
 		// The attached clip, held by pointer rather than by value. It is owned by the HUD
 		// movie's display list, so it is only ever touched from the HUD thread that is
@@ -166,6 +194,8 @@ namespace MMO
 		if (_AdvanceHud.address() != 0) {
 			_AdvanceHud(a_this, a_interval, a_currentTime);
 		}
+
+		Heartbeat();
 
 		if (g_failed) {
 			return;

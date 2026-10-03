@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -55,27 +56,126 @@ namespace
 		return std::filesystem::exists(
 			std::filesystem::path(exePath).parent_path() / L"Data/SKSE/Plugins/STB_HotkeySystem.dll");
 	}
+
+	// Every SKSE message, by name, logged the moment it arrives.
+	//
+	// This exists because of a reported hang on New Game / Load Game. Without it the log
+	// simply stops, and "stopped between two messages" is indistinguishable from "hung
+	// inside the game" -- which is the one fact that decides where to look next.
+	//
+	// The parameter is the raw std::uint32_t that Message::type carries, not the enum:
+	// the unscoped enum has no enumerator for every message the game actually sends, so
+	// an unknown value prints as "other" rather than being a value we could not name.
+	[[nodiscard]] const char* MessageName(std::uint32_t a_type)
+	{
+		using T = SKSE::MessagingInterface;
+		switch (a_type) {
+		case T::kPostLoad:
+			return "kPostLoad";
+		case T::kPostPostLoad:
+			return "kPostPostLoad";
+		case T::kPreLoadGame:
+			return "kPreLoadGame";
+		case T::kPostLoadGame:
+			return "kPostLoadGame";
+		case T::kSaveGame:
+			return "kSaveGame";
+		case T::kDeleteGame:
+			return "kDeleteGame";
+		case T::kInputLoaded:
+			return "kInputLoaded";
+		case T::kNewGame:
+			return "kNewGame";
+		case T::kDataLoaded:
+			return "kDataLoaded";
+		default:
+			return "other";
+		}
+	}
+
+	// Times one startup step and brackets it in the log. Scoped on purpose: a step that
+	// never returns still leaves its "-> name" line behind, so the last "->" without a
+	// matching "<-" names the function that hung.
+	struct StepTimer
+	{
+		const char*                           name;
+		std::chrono::steady_clock::time_point start;
+
+		explicit StepTimer(const char* a_name) : name(a_name), start(std::chrono::steady_clock::now())
+		{
+			logger::info("  -> {}", name);
+		}
+
+		~StepTimer()
+		{
+			const auto ms =
+			    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+			                                                          start);
+			logger::info("  <- {} took {} ms", name, ms.count());
+		}
+	};
 } // namespace
+
+// The INI file says what the settings are; this says what the plugin did with them, in
+// one block, at startup. A player reporting a problem should not have to read the whole
+// log to find out how the mod was configured.
+constexpr auto kUsage =
+    "settings: [Hotbar] iVisibleSlots/fBarScale/fBarX/fBarY place the bar, bEnableHUD=0 "
+    "hides it, iPresetModifierScanCode is the X key; [Icons] iKeycapSource 0=STB 1=SkyUI, "
+    "bShowItemIcons=1 draws item icons";
 
 static void SKSEMessageHandler(SKSE::MessagingInterface::Message* message)
 {
 	if (!message) {
 		return;
 	}
+	logger::info("MMO hotbar: {}", MessageName(message->type));
 
 	switch (message->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
 		{
-			HKS::Settings::Load();
-			HKS::Localization::Load();
-			HKS::FavoritesHook::Install();
-			HKS::InventoryIcons::LoadResources();
-			HKS::InventoryIcons::Install();
-			HKS::MenuInputBlock::Install();
-			HKS::InputHandler::Register();
-			HKS::PickupWatch::Register();
-			MMO::HotbarHUD::Register();
-			MMO::HotbarHUDView::Install();
+			logger::info("MMO hotbar: starting up\n{}", kUsage);
+			{
+				StepTimer t{ "Settings::Load" };
+				HKS::Settings::Load();
+			}
+			{
+				StepTimer t{ "Localization::Load" };
+				HKS::Localization::Load();
+			}
+			{
+				StepTimer t{ "FavoritesHook::Install" };
+				HKS::FavoritesHook::Install();
+			}
+			{
+				StepTimer t{ "InventoryIcons::LoadResources" };
+				HKS::InventoryIcons::LoadResources();
+			}
+			{
+				StepTimer t{ "InventoryIcons::Install" };
+				HKS::InventoryIcons::Install();
+			}
+			{
+				StepTimer t{ "MenuInputBlock::Install" };
+				HKS::MenuInputBlock::Install();
+			}
+			{
+				StepTimer t{ "InputHandler::Register" };
+				HKS::InputHandler::Register();
+			}
+			{
+				StepTimer t{ "PickupWatch::Register" };
+				HKS::PickupWatch::Register();
+			}
+			{
+				StepTimer t{ "HotbarHUD::Register" };
+				MMO::HotbarHUD::Register();
+			}
+			{
+				StepTimer t{ "HotbarHUDView::Install" };
+				MMO::HotbarHUDView::Install();
+			}
+			logger::info("MMO hotbar: startup complete");
 			// The Papyrus API is registered in SKSEPlugin_Load (SKSE's expected place).
 		}
 		break;
